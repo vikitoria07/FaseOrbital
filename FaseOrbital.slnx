@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="../../../../../../source/repos/FaseOrbital/FaseOrbital/FaseOrbital.vcxproj" Id="40b150ed-9858-49fb-ba20-7ca2dc0b33e1" />
+</Solution>
