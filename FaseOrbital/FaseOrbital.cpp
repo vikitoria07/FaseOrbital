@@ -21,3 +21,4 @@ int main()
 //   4. Use la ventana Lista de errores para ver los errores
 //   5. Vaya a Proyecto > Agregar nuevo elemento para crear nuevos archivos de código, o a Proyecto > Agregar elemento existente para agregar archivos de código existentes al proyecto
 //   6. En el futuro, para volver a abrir este proyecto, vaya a Archivo > Abrir > Proyecto y seleccione el archivo .sln
+// Archivo actualizado con funciones de listas
