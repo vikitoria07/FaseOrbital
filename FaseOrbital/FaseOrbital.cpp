@@ -1,5 +1,6 @@
 // FaseOrbital.cpp : ListaEnemigos utiliza listas dobles y ListaBalas utiliza listas simples, además, incluye las pruebas solicitadas P01 a P04.
 #include <iostream>
+#include "Generador.h"
 using namespace std;
 
 // En esta parte se establecen los  seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
@@ -604,6 +605,25 @@ bool PruebaP06() {
 // Esta es la función principal del programa, se encarga de ejecutar las pruebas requeridas de que funcione el programa y mostrar los resultados.
 int main()
 {
+	// Prueba generador aleatorio
+	GeneradorPseudoaleatorio A1(12345);
+	for (int i = 0; i < 10; i++) {
+		cout << "Random A1: " << i + 1 << ": " << A1.siguiente() << endl;
+	}
+	// Prueba de reinicio del generador pseudoaleatorio con la misma semilla
+	GeneradorPseudoaleatorio B1(12345);
+	for (int i = 0; i < 10; i++) {
+		cout << "Random B1: " << i + 1 << ": " << B1.siguiente() << endl;
+	}
+	// Prueba de reinicio del generador pseudoaleatorio con diferente semilla
+	GeneradorPseudoaleatorio C1(54321);
+	for (int i = 0; i < 10; i++) {
+		cout << "Random C1: " << i + 1 << ": " << C1.siguiente() << endl;
+	}
+	//reportar("P01", "ListaEnemigos 1000 nodos, borrar ids pares", PruebaP01());
+	//reportar("P02", "ListaEnemigos eliminar cabeza, cola y unico", PruebaP02());
+	//reportar("P03", "ListaEnemigos insertarDespues sobre la cola", PruebaP03());
+	//reportar("P04", "ListaBalas eliminar consecutivas con NodoBala**", PruebaP04());
 	reportar("P01", "ListaEnemigos 1000 nodos, borrar ids pares", PruebaP01());
 	reportar("P02", "ListaEnemigos eliminar cabeza, cola y unico", PruebaP02());
 	reportar("P03", "ListaEnemigos insertarDespues sobre la cola", PruebaP03());
