@@ -1,10 +1,11 @@
 // FaseOrbital.cpp : ListaEnemigos utiliza listas dobles y ListaBalas utiliza listas simples, además, incluye las pruebas solicitadas P01 a P04.
 #include <iostream>
+#include <string>
 using namespace std;
 
-// En esta parte se establecen los  seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
-// el tipo de color se guarda por medio de números, r indica la distancia al núcleo, theta el ángulo, omega cuanto gira e ángulo por medio de un tick,
-// vida indica la cantidad de golpes restantes para que muera, radio es el tamaño en el cual puede moverse y tickscolor para que el camaleón pueda cambiar de color.
+// En esta parte se establecen los seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
+// el tipo de color se guarda por medio de números, r indica la distancia al núcleo, theta el ángulo, omega cuánto gira e ángulo por medio de un tick,
+// vida indica la cantidad de golpes restantes para que muera, radio es el tamaño en el cual puede moverse y ticksColor para que el camaleón pueda cambiar de color.
 enum class TipoEnemigo { Dron, Girador, Divisor, Mini, Tanque, Camaleon };
 struct Enemigo {
 	int id;
@@ -121,7 +122,7 @@ public:
 };
 
 // Como en la estructura anterior, se configura la estructura bala que guarda los datos de cada bala
-// disparada por la nave(usuario). Como en enemigo, x y y son su posición y vx y vy como se mueve en su ángulo por medio de tick, el color se le asigna igualmente que a enemigo
+// disparada por la nave (usuario). Como en enemigo, x y y son su posición y vx y vy como se mueve en su ángulo por medio de tick, el color se le asigna igualmente que a enemigo
 // y duenio es el jugador.
 struct Bala {
 	double x, y, vx, vy;
@@ -318,6 +319,124 @@ public:
 	bool vacia() const { return tam == 0; }
 };
 
+// Este struct es para indicar los datos de cada jugador, nombre es el alias del jugador, Bot indica que lo controla la computadora, vidaNucleo es la vida del jugador que empieza en 100, puntaje suma los puntos que ha obtenido,
+// combo cuenta las eliminaciones seguidas sin fallar (puntos acumulados) y cargaPulso es la carga del pulso que llega como máximo a 100.
+struct Jugador {
+	string nombre;
+	bool Bot;
+	int vidaNucleo;
+	int puntaje;
+	int combo;
+	int cargaPulso;
+};
+
+// En este struct se establece el nodo de la lista circular de jugadores, cada nodo guarda un puntero al jugador y como se explico en funciones anteriores al ser una lista doble se puede recorrer hacia adelante y atrás. 
+// En esta lista ningún nodo apunta a NULL, ya que el primer nodo apunta al último y el último al primero.
+struct NodoJugador {
+	Jugador* j;
+	NodoJugador* ant;
+	NodoJugador* sig;
+};
+
+// En este class se guarda un puntero con dirección a actual que es el jugador al que le toca jugar y tam establece cuantos jugadores hay. Como es circular no hay cabeza ni cola, sino que se avanza desde actual en un sentido (horario es siguiente y antihorario es anterior).
+// La lista solo guarda punteros por lo que no crea ni borra jugadores. En la función Agregar, avanzar, eliminarActual y verActual son O(1), en cambio recorrer toda la ronda es O(n).
+class RondaJugadores {
+	NodoJugador* actual;
+	int tam;
+public:
+	// Esta parte como en funciones anteriores deja la ronda vacía y el tamaño en cero ya que su finalidad es ser el constructor de la ronda.
+	RondaJugadores() {
+		actual = NULL;
+		tam = 0;
+	}
+
+	// Esta parte se ejecuta cuando la ronda deja de existir y libera todos los nodos para no dejar memoria basura. Como la lista es circular no hay un NULL que marque el final,
+	// por eso se recorre exactamente tam (cantidad  establecida) veces y se avanza al siguiente nodo antes de hacer el delete. Los jugadores no se borran porque no pertenecen a la ronda.
+	~RondaJugadores() {
+		NodoJugador* Aux = actual;
+		int cantidad = tam;
+		for (int i = 0; i < cantidad; i++) {
+			NodoJugador* borrar = Aux;
+			Aux = Aux->sig;
+			delete borrar;
+		}
+	}
+
+	// Esta función es para eliminar la copia, ya que si se copian las rondas estas apuntarían a los mismos nodos y se liberarían dos veces.
+	RondaJugadores(const RondaJugadores&) = delete;
+	RondaJugadores& operator=(const RondaJugadores&) = delete;
+
+	// Esta función es para agregar un jugador justo antes de actual, como es una lista circular es como si se agregara al final de la ronda, así los jugadores quedan en el orden
+	// en que se registran. Si la ronda estaba vacía, el nodo nuevo es el actual y se apunta a si mismo en los dos sentidos.
+	void agregar(Jugador* j) {
+		NodoJugador* nuevo = new(NodoJugador);
+		nuevo->j = j;
+		if (actual == NULL) {
+			nuevo->ant = nuevo;
+			nuevo->sig = nuevo;
+			actual = nuevo;
+		}
+		else {
+			nuevo->ant = actual->ant;
+			nuevo->sig = actual;
+			actual->ant->sig = nuevo;
+			actual->ant = nuevo;
+		}
+		tam++;
+	}
+
+	// Esta función es para pasar el turno al siguiente jugador. Si horario es true se avanza al siguiente nodo y si es false se devuelve al anterior.
+	void avanzar(bool horario) {
+		if (actual == NULL) {
+			return;
+		}
+		if (horario == true) {
+			actual = actual->sig;
+		}
+		else {
+			actual = actual->ant;
+		}
+	}
+
+	// En esta parte se elimina el jugador actual y devuelve el jugador eliminado para poder cerrar sus estadísticas. El nuevo actual es el siguiente si horario es true
+	// o el anterior si es false, para seguir con el recorrido en el mismo sentido. Si era el único jugador la ronda queda vacía y actual en NULL, y si la ronda ya estaba vacía devuelve NULL.
+	Jugador* eliminarActual(bool horario) {
+		if (actual == NULL) {
+			return NULL;
+		}
+		NodoJugador* borrar = actual;
+		Jugador* eliminado = borrar->j;
+		if (tam == 1) {
+			actual = NULL;
+		}
+		else {
+			borrar->ant->sig = borrar->sig;
+			borrar->sig->ant = borrar->ant;
+			if (horario == true) {
+				actual = borrar->sig;
+			}
+			else {
+				actual = borrar->ant;
+			}
+		}
+		delete borrar;
+		tam--;
+		return eliminado;
+	}
+
+	// Esta función es para ver el jugador al que le toca jugar sin cambiar el turno, si la ronda está vacía devuelve NULL.
+	Jugador* verActual() const {
+		if (actual == NULL) {
+			return NULL;
+		}
+		return actual->j;
+	}
+
+	// Se usan const para que no se pueda modificar la ronda y devolver el tamaño o indicar si esta vacía.
+	int tamano() const { return tam; }
+	bool vacia() const { return tam == 0; }
+};
+
 // Este bool es para cumplir la condición de eliminarSi el cual recibe una bala y si devuelve true es porque el duenio es par y se debe borrar la bala. 
 bool condicionpar(const Bala& b) {
 	return b.duenio % 2 == 0;
@@ -364,6 +483,18 @@ Aparicion crearAparicion(int n) {
 	a.tick = n;
 	a.sentido = n % 2;
 	return a;
+}
+
+// Esta función es para crear un jugador para las pruebas, recibe el nombre y si es bot, y le establece la vida del núcleo en 100 y los demás datos en cero.
+Jugador crearJugador(const char* nombre, bool Bot) {
+	Jugador jug;
+	jug.nombre = nombre;
+	jug.Bot = Bot;
+	jug.vidaNucleo = 100;
+	jug.puntaje = 0;
+	jug.combo = 0;
+	jug.cargaPulso = 0;
+	return jug;
 }
 
 // Este void es para imprimir si el resultado se cumplio y si no se muestra error.
@@ -487,7 +618,7 @@ bool PruebaP03() {
 	return true;
 }
 
-// Para la prueba "P04", se insertan 8 balas ( de 0 a 7) y se borran por medio de marcabalas 7,6,5,3 y 2. Se deben de haber quitado esas 5 y solo quedar 4,1 y 0
+// Para la prueba "P04", se insertan 8 balas (de 0 a 7) y se borran por medio de marcabalas 7,6,5,3 y 2. Se deben de haber quitado esas 5 y solo quedar 4,1 y 0
 bool PruebaP04() {
 	ListaBalas balas;
 	for (int i = 0; i < 8; i++) {
@@ -601,7 +732,96 @@ bool PruebaP06() {
 	return true;
 }
 
-// Esta es la función principal del programa, se encarga de ejecutar las pruebas requeridas de que funcione el programa y mostrar los resultados.
+// La prueba P07 se crean tres jugadores (Ana, Luis y BOT brindados por el ejemplo) y se insertan en ese orden. Se recorre la ronda completa en sentido horario (Ana, Luis, BOT) y en sentido antihorario (Ana, BOT, Luis), y en los dos casos se debe volver a Ana, esto comprueba que los enlaces son circulares.
+// Después de esto, se elimina el jugador actual y se verifica que la ronda siga siendo circular en los dos sentidos. Se eliminan los jugadores hasta que solo quede uno y este debe apuntarse a si mismo y por último se elimina el jugador.
+
+bool PruebaP07() {
+	Jugador ana = crearJugador("Ana", false);
+	Jugador luis = crearJugador("Luis", false);
+	Jugador bot = crearJugador("BOT", true);
+	RondaJugadores ronda;
+	if (ronda.verActual() != NULL || ronda.eliminarActual(true) != NULL || ronda.tamano() != 0 || ronda.vacia() == false) {
+		return false;
+	}
+	ronda.avanzar(true);
+	ronda.avanzar(false);
+	ronda.agregar(&ana);
+	ronda.agregar(&luis);
+	ronda.agregar(&bot);
+	if (ronda.tamano() != 3 || ronda.verActual() != &ana) {
+		return false;
+	}
+	Jugador* horario[3] = { &ana, &luis, &bot };
+	for (int i = 0; i < 3; i++) {
+		if (ronda.verActual() != horario[i]) {
+			return false;
+		}
+		ronda.avanzar(true);
+	}
+	if (ronda.verActual() != &ana) {
+		return false;
+	}
+	Jugador* antihorario[3] = { &ana, &bot, &luis };
+	for (int i = 0; i < 3; i++) {
+		if (ronda.verActual() != antihorario[i]) {
+			return false;
+		}
+		ronda.avanzar(false);
+	}
+	if (ronda.verActual() != &ana) {
+		return false;
+	}
+	if (ronda.eliminarActual(true) != &ana || ronda.tamano() != 2 || ronda.verActual() != &luis) {
+		return false;
+	}
+	ronda.avanzar(true);
+	if (ronda.verActual() != &bot) {
+		return false;
+	}
+	ronda.avanzar(true);
+	if (ronda.verActual() != &luis) {
+		return false;
+	}
+	ronda.avanzar(false);
+	if (ronda.verActual() != &bot) {
+		return false;
+	}
+	ronda.avanzar(false);
+	if (ronda.verActual() != &luis) {
+		return false;
+	}
+	if (ronda.eliminarActual(false) != &luis || ronda.tamano() != 1 || ronda.verActual() != &bot) {
+		return false;
+	}
+	ronda.avanzar(true);
+	if (ronda.verActual() != &bot) {
+		return false;
+	}
+	ronda.avanzar(false);
+	if (ronda.verActual() != &bot) {
+		return false;
+	}
+	if (ronda.eliminarActual(true) != &bot) {
+		return false;
+	}
+	if (ronda.tamano() != 0 || ronda.vacia() == false || ronda.verActual() != NULL) {
+		return false;
+	}
+	RondaJugadores ronda2;
+	ronda2.agregar(&ana);
+	ronda2.agregar(&luis);
+	ronda2.agregar(&bot);
+	if (ronda2.eliminarActual(false) != &ana || ronda2.verActual() != &bot || ronda2.tamano() != 2) {
+		return false;
+	}
+	ronda2.avanzar(true);
+	if (ronda2.verActual() != &luis) {
+		return false;
+	}
+	return true;
+}
+
+// Esta es la función principal del programa, se encarga de ejecutar las pruebas requeridas para comprobar que funcionan y mostrar los resultados.
 int main()
 {
 	reportar("P01", "ListaEnemigos 1000 nodos, borrar ids pares", PruebaP01());
@@ -610,5 +830,6 @@ int main()
 	reportar("P04", "ListaBalas eliminar consecutivas con NodoBala**", PruebaP04());
 	reportar("P05", "ColaSpawn encolar, desencolar y verFrente en orden", PruebaP05());
 	reportar("P06", "ColaSpawn copia profunda con constructor de copia y operator=", PruebaP06());
+	reportar("P07", "RondaJugadores eliminar actual, unico jugador y rotar en ambos sentidos", PruebaP07());
 	return 0;
 }
