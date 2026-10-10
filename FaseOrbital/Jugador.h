@@ -1,4 +1,4 @@
-enum Color { MAGENTA, AZUL, AMARILLO };
+enum Color { CIAN=0, MAGENTA=1, AMARILLO=2};
 
 class Jugador {
 private:
