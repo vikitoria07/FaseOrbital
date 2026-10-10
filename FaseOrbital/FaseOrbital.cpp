@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include "Generador.h"
+//#include "Jugador.h" // Para poder usar el enum Color y la clase Jugador en caso de que se necesite
 using namespace std;
 
 // En esta parte se establecen los seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
