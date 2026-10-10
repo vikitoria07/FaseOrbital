@@ -203,7 +203,7 @@ public:
 struct Aparicion {
 	TipoEnemigo tipo;
 	int color;
-	double theta;
+	int theta;
 	int tick;
 	int sentido;
 };
@@ -477,7 +477,7 @@ Bala crearBala(int duenio) {
 }
 // Esta función es para crear una aparición que se distinga de las otras, el número n se usa como tick y para calcular el ángulo, así cada aparición
 // tiene datos diferentes y se puede comprobar el orden de la cola y que las copias tengan los mismos datos.
-Aparicion crearAparicion(int n) {
+Aparicion crearAparicion(int n) { // n es el tick de la aparición y se usa para calcular el ángulo y el sentido
 	Aparicion a;
 	a.tipo = TipoEnemigo::Dron;
 	a.color = n % 3;
@@ -486,8 +486,6 @@ Aparicion crearAparicion(int n) {
 	a.sentido = n % 2;
 	return a;
 }
-
-// Esta función es para crear un jugador para las pruebas, recibe el nombre y si es bot, y le establece la vida del núcleo en 100 y los demás datos en cero.
 Jugador crearJugador(const char* nombre, bool Bot) {
 	Jugador jug;
 	jug.nombre = nombre;
@@ -823,34 +821,109 @@ bool PruebaP07() {
 	return true;
 }
 
+int numEnemigos(int oleada) {
+	return 6+3*oleada;
+}
+
+int semillaOleada(int oleada, int semilla) {
+	return semilla * 1000 + oleada;
+}
+
+ColaSpawn generarOleada(int oleada, int semilla) {
+	ColaSpawn nuevaOleada;
+
+	printf("Iniciando creacion de oleada...\n");
+
+	if (oleada <= 0) {
+		return nuevaOleada;
+	}
+
+	GeneradorPseudoaleatorio generador(semillaOleada(oleada, semilla));
+
+
+	// DEFINICION DE TIPOS POR OLEADA
+	TipoEnemigo tipos[8];
+	int cantidadTipos = 2;
+
+	printf("OLEADA 1: Drones\n");
+	tipos[0] = TipoEnemigo::Dron;
+	tipos[1] = TipoEnemigo::Dron;
+
+	if (oleada >= 2) {
+		printf("OLEADA 2: Girador entrando\n");
+		tipos[cantidadTipos++] = TipoEnemigo::Girador;
+	}
+	if (oleada >= 3) {
+		printf("OLEADA 3: Divisor entrando\n");
+		tipos[cantidadTipos++] = TipoEnemigo::Divisor;
+	}
+	if (oleada >= 4) {
+		printf("OLEADA 4: Tanque entrando\n");
+		tipos[cantidadTipos++] = TipoEnemigo::Tanque;
+	}
+	if (oleada >= 5) {
+		printf("OLEADA 5: Camaleon y Girador entrando\n");
+		tipos[cantidadTipos++] = TipoEnemigo::Camaleon;
+		tipos[cantidadTipos++] = TipoEnemigo::Girador;
+	}
+
+	// APARICIONES
+	int cantidadEnemigos = numEnemigos(oleada);
+	int tickActual = 60;
+
+	printf("Cantidad de enemigos en esta oleada: %i\n", cantidadEnemigos);
+	printf("Tick actual: %i\n", tickActual);
+
+	for (int i = 0; i < cantidadEnemigos; i++) {
+		Aparicion aparicion;
+
+		int numeroTipo = generador.siguiente();
+		aparicion.tipo = tipos[numeroTipo % cantidadTipos];
+
+		int numeroColor = generador.siguiente();
+		aparicion.color = numeroColor % 3;
+
+		int numeroTheta = generador.siguiente();
+		aparicion.theta = numeroTheta % 360;
+
+		aparicion.sentido = 0; // si no es girador no hay sentido
+
+
+		// Si el tipo de enemigo es Girador, se genera un número aleatorio para determinar su sentido (0 o 1).
+		if (aparicion.tipo == TipoEnemigo::Girador) {
+			int numeroSentido = generador.siguiente();
+			aparicion.sentido = numeroSentido % 2;
+		}
+
+		aparicion.tick = tickActual;
+		
+		// ENCOLAMOS LA APARICION
+		nuevaOleada.encolar(aparicion);
+
+		int numeroIntervalo = generador.siguiente();
+
+		int intervaloBase = 35 - 2 * oleada;
+
+		if (intervaloBase > 9) {
+			intervaloBase = 9;
+		}
+
+		int intervaloReal = (intervaloBase * (60 + numeroIntervalo % 81))/ 100;
+
+		// Desde la oleada 7 puede haber aparicion  doble
+
+		if (oleada >= 7 && numeroIntervalo % 4 == 0) {
+			intervaloReal = 0;
+		}
+
+		tickActual += intervaloReal;
+	}
+
+	return nuevaOleada;
+}
 // Esta es la función principal del programa, se encarga de ejecutar las pruebas requeridas para comprobar que funcionan y mostrar los resultados.
 int main()
 {
-	// Prueba generador aleatorio
-	GeneradorPseudoaleatorio A1(12345);
-	for (int i = 0; i < 10; i++) {
-		cout << "Random A1: " << i + 1 << ": " << A1.siguiente() << endl;
-	}
-	// Prueba de reinicio del generador pseudoaleatorio con la misma semilla
-	GeneradorPseudoaleatorio B1(12345);
-	for (int i = 0; i < 10; i++) {
-		cout << "Random B1: " << i + 1 << ": " << B1.siguiente() << endl;
-	}
-	// Prueba de reinicio del generador pseudoaleatorio con diferente semilla
-	GeneradorPseudoaleatorio C1(54321);
-	for (int i = 0; i < 10; i++) {
-		cout << "Random C1: " << i + 1 << ": " << C1.siguiente() << endl;
-	}
-	//reportar("P01", "ListaEnemigos 1000 nodos, borrar ids pares", PruebaP01());
-	//reportar("P02", "ListaEnemigos eliminar cabeza, cola y unico", PruebaP02());
-	//reportar("P03", "ListaEnemigos insertarDespues sobre la cola", PruebaP03());
-	//reportar("P04", "ListaBalas eliminar consecutivas con NodoBala**", PruebaP04());
-	reportar("P01", "ListaEnemigos 1000 nodos, borrar ids pares", PruebaP01());
-	reportar("P02", "ListaEnemigos eliminar cabeza, cola y unico", PruebaP02());
-	reportar("P03", "ListaEnemigos insertarDespues sobre la cola", PruebaP03());
-	reportar("P04", "ListaBalas eliminar consecutivas con NodoBala**", PruebaP04());
-	reportar("P05", "ColaSpawn encolar, desencolar y verFrente en orden", PruebaP05());
-	reportar("P06", "ColaSpawn copia profunda con constructor de copia y operator=", PruebaP06());
-	reportar("P07", "RondaJugadores eliminar actual, unico jugador y rotar en ambos sentidos", PruebaP07());
+
 	return 0;
 }
