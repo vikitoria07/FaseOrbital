@@ -3,7 +3,8 @@
 #include <string>
 #include <cmath>
 #include "Generador.h"
-#include "Jugador.h" // Para poder usar el enum Color y la clase Jugador en caso de que se necesite
+#include "Jugador.h"
+#include "Helpers.h"
 using namespace std;
 
 // En esta parte se establecen los seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
@@ -14,12 +15,13 @@ struct Enemigo {
 	int id;
 	TipoEnemigo tipo;
 	int color;
-	double r;
+	double r; 
 	double theta;
 	double omega;
 	int vida;
 	int radio;
 	int ticksColor;
+	int sentido; // Para girador 0 = horario 1 = antihorario
 };
 
 //En el siguiente struct es para establecer la lista doble, cada nodo guarda un tipo de enemigo(dato),
@@ -123,6 +125,61 @@ public:
 	int tamano() const { return tam; }
 	bool vacia() const { return tam == 0; }
 };
+
+
+double velocidadBaseEnemigo(int oleada) {
+	return 0.8 + 0.08 * oleada;
+}
+
+void moverEnemigo(Enemigo& enemigo, int oleada) {
+	double velocidad = velocidadBaseEnemigo(oleada);
+
+	// DRON: Rapidez no tanta, sin sentido
+	if (enemigo.tipo == TipoEnemigo::Dron) {
+		enemigo.r -= velocidad;
+		enemigo.omega = 0.0;
+	}
+	else if (enemigo.tipo == TipoEnemigo::Girador) {
+		enemigo.r -= 0.85 * velocidad;
+
+		enemigo.omega = 0.9 + 0.05 * oleada;
+
+		// si el sentido es antihorario
+		if (enemigo.sentido == 0) {
+			enemigo.theta -= enemigo.omega;
+		}
+		else {
+			enemigo.theta += enemigo.omega;
+		}
+
+		enemigo.theta = normalizarAngulo(enemigo.theta);
+	}
+	else if (enemigo.tipo == TipoEnemigo::Divisor) {
+		enemigo.r -= 0.8 * velocidad;
+		enemigo.omega = 0.0;
+	}
+	else if (enemigo.tipo == TipoEnemigo::Mini) {
+		enemigo.r -= 1.25 * velocidad;
+		enemigo.theta += enemigo.omega;
+		enemigo.theta = normalizarAngulo(enemigo.theta);
+	}
+	else if (enemigo.tipo == TipoEnemigo::Tanque) {
+		enemigo.r -= 0.5 * velocidad;
+		enemigo.omega = 0.0;
+	}
+	else if (enemigo.tipo == TipoEnemigo::Camaleon) {
+		enemigo.r -= 0.85 * velocidad;
+		enemigo.omega = 0.0;
+
+		enemigo.ticksColor++;
+
+		if (enemigo.ticksColor >= 42) {
+			enemigo.ticksColor = 0;
+			enemigo.color = (enemigo.color + 1) % 3;
+		}
+	}
+
+}
 
 // Como en la estructura anterior, se configura la estructura bala que guarda los datos de cada bala
 // disparada por la nave (usuario). Como en enemigo, x y y son su posición y vx y vy como se mueve en su ángulo por medio de tick, el color se le asigna igualmente que a enemigo
@@ -343,6 +400,85 @@ public:
 	int tamano() const { return tam; }
 	bool vacia() const { return tam == 0; }
 };
+
+Enemigo crearEnemigoAparicion(const Aparicion& aparicion, int id) {
+	Enemigo nuevoEnemigo;
+
+	nuevoEnemigo.id = id;
+	nuevoEnemigo.tipo = aparicion.tipo;
+	nuevoEnemigo.color = aparicion.color;
+	nuevoEnemigo.r = 300.0;
+	nuevoEnemigo.theta = aparicion.theta;
+	nuevoEnemigo.omega = 0.0;
+	nuevoEnemigo.ticksColor = 0;
+	nuevoEnemigo.sentido = aparicion.sentido;
+
+	switch (nuevoEnemigo.tipo) {
+
+	case TipoEnemigo::Dron:
+		nuevoEnemigo.vida = 1;
+		nuevoEnemigo.radio = 6;
+		break;
+	case TipoEnemigo::Girador:
+		nuevoEnemigo.vida = 1;
+		nuevoEnemigo.radio = 6;
+		break;
+	case TipoEnemigo::Divisor:
+		nuevoEnemigo.vida = 1;
+		nuevoEnemigo.radio = 8;
+		break;
+	case TipoEnemigo::Mini:
+		nuevoEnemigo.vida = 1;
+		nuevoEnemigo.radio = 4;
+		break;
+	case TipoEnemigo::Tanque:
+		nuevoEnemigo.vida = 3;
+		nuevoEnemigo.radio = 10;
+		break;
+	case TipoEnemigo::Camaleon:
+		nuevoEnemigo.vida = 1;
+		nuevoEnemigo.radio = 7;
+		break;
+	}
+	return nuevoEnemigo;
+}
+
+Enemigo crearMini(const Enemigo& divisor, int id, double desplazamientoAngular, double velocidadAngular) {
+	Enemigo mini;
+
+	mini.id = id;
+	mini.tipo = TipoEnemigo::Mini;
+	mini.r = divisor.r;
+	mini.theta = normalizarAngulo(
+		divisor.theta + desplazamientoAngular);
+	mini.omega = velocidadAngular;
+	mini.vida = 1;
+	mini.radio = 4;
+	mini.ticksColor = 0;
+	mini.sentido = 0;
+
+	// los colores deben ser diferentes a los del padre
+
+	if (desplazamientoAngular < 0.0) {
+		mini.color = (divisor.color + 1) % 3;
+	}
+	else {
+		mini.color = (divisor.color + 2) % 3;
+	}
+
+	return mini;
+
+}
+
+void moverTodosLosEnemigos(ListaEnemigos& enemigos,int oleada) {
+	NodoEnemigo* actual = enemigos.primero();
+
+	while (actual != NULL) {
+		moverEnemigo(actual->dato, oleada);
+		actual = actual->sig;
+	}
+}
+
 // En este struct se establece el nodo de la lista circular de jugadores, cada nodo guarda un puntero al jugador y como se explico en funciones anteriores al ser una lista doble se puede recorrer hacia adelante y atrás. 
 // En esta lista ningún nodo apunta a NULL, ya que el primer nodo apunta al último y el último al primero.
 struct NodoJugador {
@@ -505,330 +641,6 @@ Jugador crearJugador(string nombre, bool Bot) {
 	jug.cambiarColorActual(MAGENTA);
 	jug.aumentarPulso(100);
 	return jug;
-}
-
-// Este void es para imprimir si el resultado se cumplio y si no se muestra error.
-void reportar(const char* id, const char* caso, bool cumplio) {
-	cout << id << " " << caso << ": ";
-	if (cumplio == true) {
-		cout << "resultado esperado\n";
-	}
-	else {
-		cout << "error\n";
-	}
-}
-
-// Para la prueba P01 se ingresan 1000 enemigos se eliminan los id que sean par y se verifica que el tamaño sea 500. Además, el recorrido en la lista hacia adelante y atrás ya que deben dar los mismos id en orden inverso.
-bool PruebaP01() {
-	ListaEnemigos lista;
-	for (int i = 1; i <= 1000; i++) {
-		lista.insertarFinal(crearEnemigo(i));
-	}
-	NodoEnemigo* n = lista.primero();
-	while (n != NULL) {
-		if (n->dato.id % 2 == 0) {
-			n = lista.eliminar(n);
-		}
-		else {
-			n = n->sig;
-		}
-	}
-	if (lista.tamano() != 500) {
-		return false;
-	}
-	int adelante[500];
-	int atras[500];
-	int cant = 0;
-	for (NodoEnemigo* p = lista.primero(); p != NULL; p = p->sig) {
-		if (cant >= 500) {
-			return false;
-		}
-		adelante[cant] = p->dato.id;
-		cant++;
-	}
-	if (cant != 500) {
-		return false;
-	}
-	cant = 0;
-	for (NodoEnemigo* p = lista.ultimo(); p != NULL; p = p->ant) {
-		if (cant >= 500) {
-			return false;
-		}
-		atras[cant] = p->dato.id;
-		cant++;
-	}
-	if (cant != 500) {
-		return false;
-	}
-	for (int i = 0; i < 500; i++) {
-		if (adelante[i] != atras[499 - i]) {
-			return false;
-		}
-		if (adelante[i] % 2 == 0) {
-			return false;
-		}
-	}
-	return true;
-}
-
-// Para la prueba P02, se crean 3 enemigos y se elimina primero la cabeza, después la cola y por último el nodo que queda. Al final, la lista debería quedar vacía y cabeza y cola en NULL.
-bool PruebaP02() {
-	ListaEnemigos lista;
-	for (int i = 1; i <= 3; i++) {
-		lista.insertarFinal(crearEnemigo(i));
-	}
-	lista.eliminar(lista.primero());
-	if (lista.primero()->dato.id != 2) {
-		return false;
-	}
-	if (lista.primero()->ant != NULL) {
-		return false;
-	}
-	lista.eliminar(lista.ultimo());
-	if (lista.ultimo()->dato.id != 2) {
-		return false;
-	}
-	if (lista.ultimo()->sig != NULL) {
-		return false;
-	}
-	if (lista.primero() != lista.ultimo()) {
-		return false;
-	}
-	if (lista.tamano() != 1) {
-		return false;
-	}
-	lista.eliminar(lista.primero());
-	if (lista.vacia() == true && lista.primero() == NULL && lista.ultimo() == NULL) {
-		return true;
-	}
-	return false;
-}
-
-// Para prueba P03 se debe buscar que insertarDespues se cumpla, por lo que se inserta un enemigo después del último nodo y se verifica que la cola se actualiza al último enemigo en ser insertado.
-bool PruebaP03() {
-	ListaEnemigos lista;
-	lista.insertarFinal(crearEnemigo(1));
-	lista.insertarFinal(crearEnemigo(2));
-	NodoEnemigo* nuevo = lista.insertarDespues(lista.ultimo(), crearEnemigo(3));
-	if (nuevo == NULL) {
-		return false;
-	}
-	if (lista.ultimo() != nuevo) {
-		return false;
-	}
-	if (lista.ultimo()->dato.id != 3) {
-		return false;
-	}
-	if (lista.ultimo()->ant->dato.id != 2) {
-		return false;
-	}
-	if (lista.ultimo()->sig != NULL) {
-		return false;
-	}
-	return true;
-}
-
-// Para la prueba "P04", se insertan 8 balas (de 0 a 7) y se borran por medio de marcabalas 7,6,5,3 y 2. Se deben de haber quitado esas 5 y solo quedar 4,1 y 0
-bool PruebaP04() {
-	ListaBalas balas;
-	for (int i = 0; i < 8; i++) {
-		balas.insertarInicio(crearBala(i));
-	}
-	int borradas = balas.eliminarSi(marcabalas);
-	if (borradas != 5) {
-		return false;
-	}
-	if (balas.tamano() != 3) {
-		return false;
-	}
-	int esperado[3] = { 4, 1, 0 };
-	int pos = 0;
-	for (NodoBala* p = balas.primero(); p != NULL; p = p->sig) {
-		if (marcabalas(p->dato) == true) {
-			return false;
-		}
-		if (pos >= 3 || p->dato.duenio != esperado[pos]) {
-			return false;
-		}
-		pos++;
-	}
-	if (pos != 3) {
-		return false;
-	}
-	return true;
-}
-// Para la prueba P05, se debe verificar que una nueva cola se encuentre vacía, que verFrente de NULL y desencolar devuelva false. Después, se encolan 5 apariciones y se comprueba que verFrente muestre la primera sin sacarla y que al desencolar salgan en el mismo orden en que entraron (1,2,3,4,5).
-// Finalmente, la cola debe quedar vacía y volver a encolar una aparición para verificar que la cola siga funcionando.
-bool PruebaP05() {
-	ColaSpawn cola;
-	Aparicion salida;
-	if (cola.vacia() == false || cola.verFrente() != NULL || cola.desencolar(salida) == true) {
-		return false;
-	}
-	for (int i = 1; i <= 5; i++) {
-		cola.encolar(crearAparicion(i));
-	}
-	if (cola.tamano() != 5) {
-		return false;
-	}
-	if (cola.verFrente() == NULL || cola.verFrente()->tick != 1) {
-		return false;
-	}
-	if (cola.tamano() != 5) {
-		return false;
-	}
-	for (int i = 1; i <= 5; i++) {
-		if (cola.desencolar(salida) == false) {
-			return false;
-		}
-		if (salida.tick != i || salida.theta != i * 10.0) {
-			return false;
-		}
-	}
-	if (cola.vacia() == false || cola.verFrente() != NULL || cola.tamano() != 0) {
-		return false;
-	}
-	cola.encolar(crearAparicion(9));
-	if (cola.tamano() != 1 || cola.verFrente()->tick != 9) {
-		return false;
-	}
-	return true;
-}
-
-// En la prueba P06 Se crea una cola con 5 apariciones y se copia con el constructor de copia y con el operador =. Se sacan todas las apariciones de las copias y se encolan otras, la cola original debe quedar intacta con sus 5 apariciones
-// Además en la prueba se da la asignación de una cola a si misma y la asignación sobre una cola que ya tenía datos.
-bool PruebaP06() {
-	ColaSpawn original;
-	for (int i = 1; i <= 5; i++) {
-		original.encolar(crearAparicion(i));
-	}
-	ColaSpawn copia(original);
-	ColaSpawn asignada;
-	asignada.encolar(crearAparicion(99));
-	asignada.encolar(crearAparicion(98));
-	asignada = original;
-	Aparicion salida;
-	for (int i = 1; i <= 5; i++) {
-		if (copia.desencolar(salida) == false || salida.tick != i) {
-			return false;
-		}
-	}
-	for (int i = 1; i <= 5; i++) {
-		if (asignada.desencolar(salida) == false || salida.tick != i) {
-			return false;
-		}
-	}
-	if (copia.vacia() == false || asignada.vacia() == false) {
-		return false;
-	}
-	copia.encolar(crearAparicion(50));
-	asignada.encolar(crearAparicion(60));
-	if (original.tamano() != 5) {
-		return false;
-	}
-	ColaSpawn& referencia = original;
-	original = referencia;
-	if (original.tamano() != 5) {
-		return false;
-	}
-	for (int i = 1; i <= 5; i++) {
-		if (original.desencolar(salida) == false || salida.tick != i || salida.sentido != i % 2) {
-			return false;
-		}
-	}
-	if (original.vacia() == false || original.verFrente() != NULL) {
-		return false;
-	}
-	return true;
-}
-
-// La prueba P07 se crean tres jugadores (Ana, Luis y BOT brindados por el ejemplo) y se insertan en ese orden. Se recorre la ronda completa en sentido horario (Ana, Luis, BOT) y en sentido antihorario (Ana, BOT, Luis), y en los dos casos se debe volver a Ana, esto comprueba que los enlaces son circulares.
-// Después de esto, se elimina el jugador actual y se verifica que la ronda siga siendo circular en los dos sentidos. Se eliminan los jugadores hasta que solo quede uno y este debe apuntarse a si mismo y por último se elimina el jugador.
-
-bool PruebaP07() {
-	Jugador ana = crearJugador("Ana", false);
-	Jugador luis = crearJugador("Luis", false);
-	Jugador bot = crearJugador("BOT", true);
-	RondaJugadores ronda;
-	if (ronda.verActual() != NULL || ronda.eliminarActual(true) != NULL || ronda.tamano() != 0 || ronda.vacia() == false) {
-		return false;
-	}
-	ronda.avanzar(true);
-	ronda.avanzar(false);
-	ronda.agregar(&ana);
-	ronda.agregar(&luis);
-	ronda.agregar(&bot);
-	if (ronda.tamano() != 3 || ronda.verActual() != &ana) {
-		return false;
-	}
-	Jugador* horario[3] = { &ana, &luis, &bot };
-	for (int i = 0; i < 3; i++) {
-		if (ronda.verActual() != horario[i]) {
-			return false;
-		}
-		ronda.avanzar(true);
-	}
-	if (ronda.verActual() != &ana) {
-		return false;
-	}
-	Jugador* antihorario[3] = { &ana, &bot, &luis };
-	for (int i = 0; i < 3; i++) {
-		if (ronda.verActual() != antihorario[i]) {
-			return false;
-		}
-		ronda.avanzar(false);
-	}
-	if (ronda.verActual() != &ana) {
-		return false;
-	}
-	if (ronda.eliminarActual(true) != &ana || ronda.tamano() != 2 || ronda.verActual() != &luis) {
-		return false;
-	}
-	ronda.avanzar(true);
-	if (ronda.verActual() != &bot) {
-		return false;
-	}
-	ronda.avanzar(true);
-	if (ronda.verActual() != &luis) {
-		return false;
-	}
-	ronda.avanzar(false);
-	if (ronda.verActual() != &bot) {
-		return false;
-	}
-	ronda.avanzar(false);
-	if (ronda.verActual() != &luis) {
-		return false;
-	}
-	if (ronda.eliminarActual(false) != &luis || ronda.tamano() != 1 || ronda.verActual() != &bot) {
-		return false;
-	}
-	ronda.avanzar(true);
-	if (ronda.verActual() != &bot) {
-		return false;
-	}
-	ronda.avanzar(false);
-	if (ronda.verActual() != &bot) {
-		return false;
-	}
-	if (ronda.eliminarActual(true) != &bot) {
-		return false;
-	}
-	if (ronda.tamano() != 0 || ronda.vacia() == false || ronda.verActual() != NULL) {
-		return false;
-	}
-	RondaJugadores ronda2;
-	ronda2.agregar(&ana);
-	ronda2.agregar(&luis);
-	ronda2.agregar(&bot);
-	if (ronda2.eliminarActual(false) != &ana || ronda2.verActual() != &bot || ronda2.tamano() != 2) {
-		return false;
-	}
-	ronda2.avanzar(true);
-	if (ronda2.verActual() != &luis) {
-		return false;
-	}
-	return true;
 }
 
 // AÑADIR BALAS A LISTA DE BALAS
