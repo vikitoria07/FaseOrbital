@@ -198,6 +198,28 @@ public:
 	int tamano() const { return tam; }
 	bool vacia() const { return tam == 0; }
 };
+
+Bala crearBalaAutomatica(const Jugador& jugador, int identificadorJugador) {
+	constexpr double PI = 3.141592;
+	constexpr double RADIO_ORBITA = 100.0;
+	constexpr double VELOCIDAD_BALA = 9;
+
+	double anguloRadianes =
+		jugador.obtenerPosicionAngular() * PI / 180.0;
+
+	Bala bala;
+
+	bala.x = RADIO_ORBITA * cos(anguloRadianes);
+	bala.y = RADIO_ORBITA * sin(anguloRadianes);
+
+	bala.vx = VELOCIDAD_BALA * cos(anguloRadianes);
+	bala.vy = VELOCIDAD_BALA * sin(anguloRadianes);
+
+	bala.color = jugador.obtenerColorActual();
+	bala.duenio = identificadorJugador;
+
+	return bala;
+}
 // Continuando con la misma base de las estructuras anteriores, este struct guarda los datos de cada aparición pendiente de la oleada (guarda el enemigo que todavía no ha aparecido).
 // El tipo en el struct establece que clase de enemigo va a aparecer, color indica el color con el que aparece, theta es el ángulo, tick indica en cuál tick de la oleada le toca aparecer 
 // y sentido indica hacia donde gira el enemigo (tomando en cuenta que 0 es horario y 1 antihorario).
@@ -809,6 +831,18 @@ bool PruebaP07() {
 	return true;
 }
 
+// AÑADIR BALAS A LISTA DE BALAS
+void procesarTick(int tick, Jugador& jugador, ListaBalas& listaBalas) {
+	if (tick % 4 == 0) {
+		Bala bala = crearBalaAutomatica(
+			jugador,
+			jugador.obtenerIdentificador()
+		);
+
+		listaBalas.insertarInicio(bala);
+	}
+}
+
 int numEnemigos(int oleada) {
 	return 6+3*oleada;
 }
@@ -917,11 +951,15 @@ ColaSpawn generarOleada(int oleada, int semilla) {
 // Esta es la función principal del programa, se encarga de ejecutar las pruebas requeridas para comprobar que funcionan y mostrar los resultados.
 int main()
 {
-	// PROBAR GIRAR LA NAVE
-	Jugador jugador1;
-	jugador1.girarHacia(100.0f);
+	Jugador jugador;
 
-	printf("Nave giró 100 grados");
+	ListaBalas balas;
+	// probargenerador de balas
+	for (int tick = 0; tick <= 8; tick++) {
+		printf("creando bala...");
+		procesarTick(tick, jugador, balas);
+	}
 
+	cout << balas.tamano() << endl;
 	return 0;
 }
