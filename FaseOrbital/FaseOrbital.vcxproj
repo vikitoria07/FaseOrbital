@@ -142,10 +142,7 @@
     <ClCompile Include="FaseOrbital.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ColaSpawn.h" />
-    <ClInclude Include="Enemigo.h" />
     <ClInclude Include="Generador.h" />
-    <ClInclude Include="GeneradorOleadas.h" />
     <ClInclude Include="Jugador.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

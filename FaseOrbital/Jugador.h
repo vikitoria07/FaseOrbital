@@ -1,7 +1,9 @@
 enum Color { CIAN=0, MAGENTA=1, AMARILLO=2};
+#include <cmath>
 
 class Jugador {
 private:
+	string nombre;
 	int identificador;
 	float posicion_angular;
 	Color color_actual;
@@ -11,11 +13,24 @@ private:
 	int combo_maximo;
 	bool eliminado;
 
+	static float normalizarAngulo(float angulo) {
+		while (angulo < 0.0f) {
+			angulo += 360.0f;
+		}
+
+		while (angulo >= 360.0f) {
+			angulo -= 360.0f;
+		}
+
+		return angulo;
+}
+
 public:
 	// Constructor: Inicializa los atributos del jugador con valores predeterminados.
 	Jugador() :
+		nombre(""),
 		identificador(0),
-		posicion_angular(0.0f),
+		posicion_angular(270.0f),
 		color_actual(Color::MAGENTA),
 		carga_pulse(100),
 		puntaje(0),
@@ -48,6 +63,12 @@ public:
 	}
 	bool estaEliminado() const {
 		return eliminado;
+	}
+
+	// SETTERS
+
+	void ponerNombre(string n) {
+		nombre = n;
 	}
 	void cambiarPosicionAngular(float nueva_posicion) {
 		posicion_angular = nueva_posicion;
@@ -89,5 +110,28 @@ public:
 	}
 	void eliminarJugador() {
 		eliminado = true;
+	}
+
+	void girarHacia(float angulo) {
+		angulo = normalizarAngulo(angulo);
+
+		float dif = angulo - obtenerPosicionAngular();
+
+		if (dif > 180.0f) {
+			dif -= 360.0f;
+		}
+		else if (dif < -180.0f) {
+			dif += 360.0f;
+		}
+
+		if (std::fabs(dif) <= 6.0f) {
+			cambiarPosicionAngular(angulo);
+		}
+		else if (dif > 0.0f) {
+			cambiarPosicionAngular(posicion_angular + 6.0f);
+		}
+		else {
+			cambiarPosicionAngular(posicion_angular - 6.0f);
+		}
 	}
 };
