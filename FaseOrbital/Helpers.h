@@ -32,5 +32,16 @@ double aRadianes(double grados) {
 double distancia(double x1, double x2, double y1, double y2) {
 	double dx = x1 - x2;
 	double dy = y1 - y2;
-	return std::sqrt(dx * dx + dy * dy)
+	return std::sqrt(dx * dx + dy * dy);
+}
+
+int calcMultiplicador(int combo) {
+	int multiplicador = 1 + combo / 6;
+
+	if (multiplicador > 8) {
+		multiplicador = 8;
+	}
+	
+	return multiplicador;
+
 }
