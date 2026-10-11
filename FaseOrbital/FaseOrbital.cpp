@@ -288,6 +288,10 @@ struct Aparicion {
 	int sentido;
 };
 
+struct Pulso {
+	bool activo;
+	double radio_actual;
+};
 // En este struct se establece el nodo de la cola enlazada de apariciones, cada nodo guarda una aparición (un dato) y un puntero sig al nodo que sigue en la cola.
 struct NodoAparicion {
 	Aparicion dato;
@@ -476,6 +480,166 @@ void moverTodosLosEnemigos(ListaEnemigos& enemigos,int oleada) {
 	while (actual != NULL) {
 		moverEnemigo(actual->dato, oleada);
 		actual = actual->sig;
+	}
+}
+
+double enemigoX(const Enemigo& enemigo) {
+	return enemigo.r * cos(aRadianes(enemigo.theta));
+}
+
+double enemigoY(const Enemigo& enemigo) {
+	return enemigo.r * sin(aRadianes(enemigo.theta));
+}
+
+bool enemigoAlcanzoNucelo(Enemigo& enemigo, Jugador& jugador) {
+	double limite = 20.0 + 0.4 * enemigo.radio;
+
+	if (enemigo.r <= limite) {
+		int danno = enemigo.tipo == TipoEnemigo::Tanque ? 22 : 10; // si es tanque el daño es 22
+
+		jugador.recibirDanno(danno);
+		jugador.resetearCombo();
+
+		return true;
+	}
+
+	return false;
+}
+
+bool enemigoChocoNave(const Enemigo& enemigo,const Jugador& jugador) {
+	double angulo = aRadianes(jugador.obtenerPosicionAngular());
+
+	double naveX = 100.0 * cos(angulo);
+	double naveY = 100.0 * sin(angulo);
+
+	double enemigoPosX = enemigoX(enemigo);
+	double enemigoPosY = enemigoX(enemigo);
+
+	// sacamos la distancia entre la nave y el enemigo
+	double distanciaColision = distancia(enemigoPosX, enemigoPosY, naveX, naveY);
+
+	return distanciaColision < enemigo.radio + 5.0;
+
+}
+
+bool balaImpactaEnemigo(const Bala& bala, Enemigo& enemigo) {
+	double x = enemigoX(enemigo);
+	double y = enemigoY(enemigo);
+
+	// la distancia entre la bala y la posicion del enemigo es menor al radio de enemigo
+	return distancia(bala.x, bala.y, x, y) < enemigo.radio;
+}
+
+void impacto(Bala& bala, Enemigo& enemigo, Jugador& jugador) {
+	if (bala.color == enemigo.color) {
+		enemigo.vida--;
+
+		if (enemigo.vida == 0) {
+			int multiplicador = 1 + jugador.obtenerColorActual() / 6;
+
+			if (multiplicador > 8) {
+				multiplicador = 8;
+			}
+
+			int puntosBase = 0;
+
+			switch (enemigo.tipo) {
+			case TipoEnemigo::Dron:
+				puntosBase = 100;
+				break;
+			case TipoEnemigo::Girador:
+				puntosBase = 150;
+				break;
+			case TipoEnemigo::Divisor:
+				puntosBase = 200;
+				break;
+			case TipoEnemigo::Mini:
+				puntosBase = 75;
+				break;
+			case TipoEnemigo::Tanque:
+				puntosBase = 400;
+				break;
+			case TipoEnemigo::Camaleon:
+				puntosBase = 300;
+				break;
+			}
+
+
+			jugador.aumentarPuntaje(
+				puntosBase * multiplicador
+			);
+
+			jugador.incrementarCombo();
+
+			int carga = enemigo.tipo == TipoEnemigo::Tanque ? 14 : 5;
+
+			jugador.aumentarPulso(carga);
+		}
+	}
+	else {
+		enemigo.r += 9.0;
+		jugador.resetearCombo();
+
+		// Registrar IMPACTO ERRÓNEO
+	}
+}
+
+void activarPulso(Pulso& pulso, Jugador& jugador) {
+	if (jugador.obtenerCargaPulse() == 100.0f) {
+		pulso.activo = true;
+		pulso.radio_actual = 20.0;
+		jugador.resetearPulso();
+	}
+}
+
+void avanzarPulso(Pulso& pulso, ListaEnemigos& enemigos, Jugador& jugador) {
+
+	if (!pulso.activo) {
+		return;
+	}
+
+	pulso.radio_actual += 12.0;
+
+	NodoEnemigo* actual = enemigos.primero();
+
+	while (actual != NULL) {
+		NodoEnemigo* siguiente = actual->sig;
+
+		double diferencia = fabs(actual->dato.r - pulso.radio_actual);
+
+		if (diferencia < actual->dato.radio + 3.0) {
+			int puntosBase = 0;
+
+			switch (actual->dato.tipo) {
+			case TipoEnemigo::Dron:
+				puntosBase = 100;
+				break;
+			case TipoEnemigo::Girador:
+				puntosBase = 150;
+				break;
+			case TipoEnemigo::Divisor:
+				puntosBase = 200;
+				break;
+			case TipoEnemigo::Mini:
+				puntosBase = 75;
+				break;
+			case TipoEnemigo::Tanque:
+				puntosBase = 400;
+				break;
+			case TipoEnemigo::Camaleon:
+				puntosBase = 300;
+				break;
+			}
+
+			jugador.aumentarPuntaje(puntosBase);
+
+			enemigos.eliminar(actual);
+		}
+
+		actual = siguiente;
+	}
+	if (pulso.radio_actual > 320.0) {
+		pulso.activo = false;
 	}
 }
 

@@ -12,6 +12,7 @@ private:
 	int combo_actual;
 	int combo_maximo;
 	bool eliminado;
+	int vida_nucleo;
 
 	static float normalizarAngulo(float angulo) {
 		while (angulo < 0.0f) {
@@ -36,8 +37,9 @@ public:
 		puntaje(0),
 		combo_actual(0),
 		combo_maximo(0),
-		eliminado(false) {
-	}
+		eliminado(false),
+		vida_nucleo(100)
+	{}
 
 	// GETTERS
 	int obtenerIdentificador() const {
@@ -45,6 +47,9 @@ public:
 	}
 	float obtenerPosicionAngular() const {
 		return posicion_angular;
+	}
+	int obtenerVidaNucleo() const {
+		return vida_nucleo;
 	}
 	int obtenerColorActual() const {
 		return color_actual;
@@ -79,6 +84,10 @@ public:
 
 	void aumentarPulso(float incremento) {
 		carga_pulse += incremento;
+
+		if (carga_pulse > 100.0f) {
+			carga_pulse = 100;
+		}
 	}
 	void resetearPulso() {
 		carga_pulse = 0.0f;
@@ -133,5 +142,12 @@ public:
 		else {
 			cambiarPosicionAngular(posicion_angular - 6.0f);
 		}
+	}
+
+	void recibirDanno(int danno) {
+		vida_nucleo -= danno;
+	}
+	void reiniciarNucleo() {
+		vida_nucleo = 100;
 	}
 };
