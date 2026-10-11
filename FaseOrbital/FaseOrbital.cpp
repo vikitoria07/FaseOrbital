@@ -530,58 +530,51 @@ bool balaImpactaEnemigo(const Bala& bala, Enemigo& enemigo) {
 	return distancia(bala.x, bala.y, x, y) < enemigo.radio;
 }
 
-void impacto(Bala& bala, Enemigo& enemigo, Jugador& jugador) {
-	if (bala.color == enemigo.color) {
-		enemigo.vida--;
-
-		if (enemigo.vida == 0) {
-			int multiplicador = 1 + jugador.obtenerColorActual() / 6;
-
-			if (multiplicador > 8) {
-				multiplicador = 8;
-			}
-
-			int puntosBase = 0;
-
-			switch (enemigo.tipo) {
-			case TipoEnemigo::Dron:
-				puntosBase = 100;
-				break;
-			case TipoEnemigo::Girador:
-				puntosBase = 150;
-				break;
-			case TipoEnemigo::Divisor:
-				puntosBase = 200;
-				break;
-			case TipoEnemigo::Mini:
-				puntosBase = 75;
-				break;
-			case TipoEnemigo::Tanque:
-				puntosBase = 400;
-				break;
-			case TipoEnemigo::Camaleon:
-				puntosBase = 300;
-				break;
-			}
-
-
-			jugador.aumentarPuntaje(
-				puntosBase * multiplicador
-			);
-
-			jugador.incrementarCombo();
-
-			int carga = enemigo.tipo == TipoEnemigo::Tanque ? 14 : 5;
-
-			jugador.aumentarPulso(carga);
-		}
+int puntosPorTipo(TipoEnemigo tipo) {
+	switch (tipo) {
+	case TipoEnemigo::Dron:
+		return 100;
+	case TipoEnemigo::Girador:
+		return 150;
+	case TipoEnemigo::Divisor:
+		return 200;
+	case TipoEnemigo::Mini:
+		return 75;
+	case TipoEnemigo::Tanque:
+		return 400;
+	case TipoEnemigo::Camaleon:
+		return 300;
 	}
-	else {
+}
+
+void impacto(Bala& bala, Enemigo& enemigo, Jugador& jugador) {
+
+	// Si hubo un tiro fallido se resetea el combo
+	if (bala.color != enemigo.color) {
 		enemigo.r += 9.0;
 		jugador.resetearCombo();
-
-		// Registrar IMPACTO ERRÓNEO
+		return;
 	}
+
+	// si no es fallido el enemigo pierde vida
+
+	enemigo.vida--;
+
+	// si el enemigo no muere, no pasa nada
+	if (enemigo.vida > 0) {
+		return;
+	}
+
+	// Si el enemigo si muere
+
+	jugador.incrementarCombo();
+	int multiplicador = calcMultiplicador(jugador.obtenerComboActual());
+	int puntos = puntosPorTipo(enemigo.tipo) * multiplicador;
+	jugador.aumentarPuntaje(puntos);
+
+	// Aumentamos el pulso
+	int carga = enemigo.tipo == TipoEnemigo::Tanque ? 14 : 5;
+	jugador.aumentarPulso(carga);
 }
 
 void activarPulso(Pulso& pulso, Jugador& jugador) {
@@ -608,31 +601,8 @@ void avanzarPulso(Pulso& pulso, ListaEnemigos& enemigos, Jugador& jugador) {
 		double diferencia = fabs(actual->dato.r - pulso.radio_actual);
 
 		if (diferencia < actual->dato.radio + 3.0) {
-			int puntosBase = 0;
-
-			switch (actual->dato.tipo) {
-			case TipoEnemigo::Dron:
-				puntosBase = 100;
-				break;
-			case TipoEnemigo::Girador:
-				puntosBase = 150;
-				break;
-			case TipoEnemigo::Divisor:
-				puntosBase = 200;
-				break;
-			case TipoEnemigo::Mini:
-				puntosBase = 75;
-				break;
-			case TipoEnemigo::Tanque:
-				puntosBase = 400;
-				break;
-			case TipoEnemigo::Camaleon:
-				puntosBase = 300;
-				break;
-			}
-
+			int puntosBase = puntosPorTipo(actual->dato.tipo);
 			jugador.aumentarPuntaje(puntosBase);
-
 			enemigos.eliminar(actual);
 		}
 
