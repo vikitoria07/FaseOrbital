@@ -1,3 +1,7 @@
+#include <cmath>
+
+constexpr double PI = 3.141592;
+
 float normalizarAngulo(float angulo) {
 	while (angulo < 0.0f) {
 		angulo += 360.0f;
@@ -19,4 +23,14 @@ void reportar(const char* id, const char* caso, bool cumplio) {
 	else {
 		cout << "error\n";
 	}
+}
+
+double aRadianes(double grados) {
+	return grados * PI / 180.0;
+}
+
+double distancia(double x1, double x2, double y1, double y2) {
+	double dx = x1 - x2;
+	double dy = y1 - y2;
+	return std::sqrt(dx * dx + dy * dy)
 }
