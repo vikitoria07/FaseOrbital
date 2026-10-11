@@ -1,8 +1,9 @@
 // FaseOrbital.cpp : ListaEnemigos utiliza listas dobles y ListaBalas utiliza listas simples, además, incluye las pruebas solicitadas P01 a P04.
 #include <iostream>
 #include <string>
+#include <cmath>
 #include "Generador.h"
-//#include "Jugador.h" // Para poder usar el enum Color y la clase Jugador en caso de que se necesite
+#include "Jugador.h" // Para poder usar el enum Color y la clase Jugador en caso de que se necesite
 using namespace std;
 
 // En esta parte se establecen los seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
@@ -320,18 +321,6 @@ public:
 	int tamano() const { return tam; }
 	bool vacia() const { return tam == 0; }
 };
-
-// Este struct es para indicar los datos de cada jugador, nombre es el alias del jugador, Bot indica que lo controla la computadora, vidaNucleo es la vida del jugador que empieza en 100, puntaje suma los puntos que ha obtenido,
-// combo cuenta las eliminaciones seguidas sin fallar (puntos acumulados) y cargaPulso es la carga del pulso que llega como máximo a 100.
-struct Jugador {
-	string nombre;
-	bool Bot;
-	int vidaNucleo;
-	int puntaje;
-	int combo;
-	int cargaPulso;
-};
-
 // En este struct se establece el nodo de la lista circular de jugadores, cada nodo guarda un puntero al jugador y como se explico en funciones anteriores al ser una lista doble se puede recorrer hacia adelante y atrás. 
 // En esta lista ningún nodo apunta a NULL, ya que el primer nodo apunta al último y el último al primero.
 struct NodoJugador {
@@ -486,14 +475,13 @@ Aparicion crearAparicion(int n) { // n es el tick de la aparición y se usa para
 	a.sentido = n % 2;
 	return a;
 }
-Jugador crearJugador(const char* nombre, bool Bot) {
+Jugador crearJugador(string nombre, bool Bot) {
 	Jugador jug;
-	jug.nombre = nombre;
-	jug.Bot = Bot;
-	jug.vidaNucleo = 100;
-	jug.puntaje = 0;
-	jug.combo = 0;
-	jug.cargaPulso = 0;
+	jug.ponerNombre(nombre);
+	jug.aumentarPuntaje(100);
+	jug.cambiarComboMaximo(100);
+	jug.cambiarColorActual(MAGENTA);
+	jug.aumentarPulso(100);
 	return jug;
 }
 
@@ -829,6 +817,8 @@ int semillaOleada(int oleada, int semilla) {
 	return semilla * 1000 + oleada;
 }
 
+// GENERADOR DE OLEADAS
+
 ColaSpawn generarOleada(int oleada, int semilla) {
 	ColaSpawn nuevaOleada;
 
@@ -921,9 +911,17 @@ ColaSpawn generarOleada(int oleada, int semilla) {
 
 	return nuevaOleada;
 }
+
+// MOVIMIENTO DE LA NAVE
+
 // Esta es la función principal del programa, se encarga de ejecutar las pruebas requeridas para comprobar que funcionan y mostrar los resultados.
 int main()
 {
+	// PROBAR GIRAR LA NAVE
+	Jugador jugador1;
+	jugador1.girarHacia(100.0f);
+
+	printf("Nave giró 100 grados");
 
 	return 0;
 }
