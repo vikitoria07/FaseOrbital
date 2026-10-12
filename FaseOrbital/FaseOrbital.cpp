@@ -5,6 +5,7 @@
 #include "Generador.h"
 #include "Jugador.h"
 #include "Helpers.h"
+#include <allegro5/allegro.h>
 using namespace std;
 
 // En esta parte se establecen los seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
@@ -896,16 +897,75 @@ ColaSpawn generarOleada(int oleada, int semilla) {
 
 // Esta es la función principal del programa, se encarga de ejecutar las pruebas requeridas para comprobar que funcionan y mostrar los resultados.
 int main()
-{
-	Jugador jugador;
+{	
+		Jugador jugador;
+		ListaBalas balas;
 
-	ListaBalas balas;
-	// probargenerador de balas
-	for (int tick = 0; tick <= 8; tick++) {
-		printf("creando bala...");
-		procesarTick(tick, jugador, balas);
+		for (int tick = 0; tick <= 8; tick++) {
+			printf("creando bala...");
+			procesarTick(tick, jugador, balas);
+		}
+
+		cout << balas.tamano() << endl;
+
+		// Inicializar Allegro
+		if (!al_init()) {
+			cerr << "No se pudo inicializar Allegro." << endl;
+			return -1;
+		}
+
+		// Crear ventana
+		ALLEGRO_DISPLAY* ventana = al_create_display(800, 600);
+		if (!ventana) {
+			cerr << "No se pudo crear la ventana." << endl;
+			return -1;
+		}
+
+		// Crear cola de eventos
+		ALLEGRO_EVENT_QUEUE* cola = al_create_event_queue();
+		if (!cola) {
+			cerr << "No se pudo crear la cola de eventos." << endl;
+			al_destroy_display(ventana);
+			return -1;
+		}
+
+		// Crear timer de 30 ticks por segundo
+		ALLEGRO_TIMER* timer = al_create_timer(1.0 / 30.0);
+		if (!timer) {
+			cerr << "No se pudo crear el timer." << endl;
+			al_destroy_event_queue(cola);
+			al_destroy_display(ventana);
+			return -1;
+		}
+
+		// Escuchar eventos de la ventana y del timer
+		al_register_event_source(
+			cola,
+			al_get_display_event_source(ventana)
+		);
+		al_register_event_source(
+			cola,
+			al_get_timer_event_source(timer)
+		);
+
+		al_start_timer(timer);
+
+		// Mantener la ventana abierta hasta que la cierren
+		bool ejecutando = true;
+
+		while (ejecutando) {
+			ALLEGRO_EVENT evento;
+			al_wait_for_event(cola, &evento);
+
+			if (evento.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+				ejecutando = false;
+			}
+		}
+
+		// Liberar recursos
+		al_destroy_timer(timer);
+		al_destroy_event_queue(cola);
+		al_destroy_display(ventana);
+
+		return 0;
 	}
-
-	cout << balas.tamano() << endl;
-	return 0;
-}
