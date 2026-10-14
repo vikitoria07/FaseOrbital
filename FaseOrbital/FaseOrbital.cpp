@@ -1,10 +1,11 @@
-// FaseOrbital.cpp : ListaEnemigos utiliza listas dobles y ListaBalas utiliza listas simples, además, incluye las pruebas solicitadas P01 a P04.
+// FaseOrbital.cpp 
 #include <iostream>
 #include <string>
 #include <cmath>
 #include "Generador.h"
 #include "Jugador.h"
 #include "Helpers.h"
+#include <allegro5/allegro.h>
 using namespace std;
 
 // En esta parte se establecen los seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
@@ -40,8 +41,8 @@ class ListaEnemigos {
 	int tam;
 public:
 	ListaEnemigos() {
-		cabeza = NULL;
-		cola = NULL;
+		cabeza = nullptr;
+		cola = nullptr;
 		tam = 0;
 	}
 
@@ -49,7 +50,7 @@ public:
 	// Se avanza al siguiente nodo antes de hacer el delete para poder volver leer la lista al volver a ejecutarse.
 	~ListaEnemigos() {
 		NodoEnemigo* Aux = cabeza;
-		while (Aux != NULL) {
+		while (Aux != nullptr) {
 			NodoEnemigo* borrar = Aux;
 			Aux = Aux->sig;
 			delete borrar;
@@ -63,9 +64,9 @@ public:
 	NodoEnemigo* insertarFinal(const Enemigo& e) {
 		NodoEnemigo* nuevo = new NodoEnemigo;
 		nuevo->dato = e;
-		nuevo->sig = NULL;
+		nuevo->sig = nullptr;
 		nuevo->ant = cola;
-		if (cola == NULL) {
+		if (cola == nullptr) {
 			cabeza = nuevo;
 		}
 		else {
@@ -77,16 +78,16 @@ public:
 	}
 
 	// En la siguiente parte se agrega un enemigo justo después del nodo n y devuelve el nodo creado.
-	// Si n era la cola, el nodo nuevo pasa a ser el último nodo y si n es NULL no se inserta nada.
+	// Si n era la cola, el nodo nuevo pasa a ser el último nodo y si n es nullptr no se inserta nada.
 	NodoEnemigo* insertarDespues(NodoEnemigo* n, const Enemigo& e) {
-		if (n == NULL) {
-			return NULL;
+		if (n == nullptr) {
+			return nullptr;
 		}
 		NodoEnemigo* nuevo = new NodoEnemigo;
 		nuevo->dato = e;
 		nuevo->ant = n;
 		nuevo->sig = n->sig;
-		if (n->sig != NULL) {
+		if (n->sig != nullptr) {
 			n->sig->ant = nuevo;
 		}
 		else {
@@ -97,19 +98,19 @@ public:
 		return nuevo;
 	}
 
-	// En esta parte se elimina el nodo n y devuelve el nodo siguiente para poder seguir el recorrido de la lista. Si n es NULL no se realiza nada y se devuelve NULL.
+	// En esta parte se elimina el nodo n y devuelve el nodo siguiente para poder seguir el recorrido de la lista. Si n es nullptr no se realiza nada y se devuelve nullptr.
 	NodoEnemigo* eliminar(NodoEnemigo* n) {
-		if (n == NULL) {
-			return NULL;
+		if (n == nullptr) {
+			return nullptr;
 		}
 		NodoEnemigo* siguiente = n->sig;
-		if (n->ant != NULL) {
+		if (n->ant != nullptr) {
 			n->ant->sig = n->sig;
 		}
 		else {
 			cabeza = n->sig;
 		}
-		if (n->sig != NULL) {
+		if (n->sig != nullptr) {
 			n->sig->ant = n->ant;
 		}
 		else {
@@ -199,14 +200,14 @@ class ListaBalas {
 public:
 	// Esta parte deja la lista vacía y el tamaño en cero como constructor de la lista.
 	ListaBalas() {
-		cabeza = NULL;
+		cabeza = nullptr;
 		tam = 0;
 	}
 
 	//  En cambio, esta se puede tomar como la que la elimina ya que recorre la lista y libera todos los nodos.
 	~ListaBalas() {
 		NodoBala* Aux = cabeza;
-		while (Aux != NULL) {
+		while (Aux != nullptr) {
 			NodoBala* borrar = Aux;
 			Aux = Aux->sig;
 			delete borrar;
@@ -231,7 +232,7 @@ public:
 	int eliminarSi(Pred debeEliminarse) {
 		int borradas = 0;
 		NodoBala** p = &cabeza;
-		while (*p != NULL) {
+		while (*p != nullptr) {
 			if (debeEliminarse((*p)->dato) == true) {
 				NodoBala* borrar = *p;
 				*p = borrar->sig;
@@ -305,18 +306,18 @@ class ColaSpawn {
 public:
 	//  En esta parte se indica la cola que este vacía y el tamaño en cero, haciéndolo que sea el constructor de la cola.
 	ColaSpawn() {
-		frente = NULL;
-		final = NULL;
+		frente = nullptr;
+		final = nullptr;
 		tam = 0;
 	}
 
 	// Las siguientes líneas son las constructoras de copia, se hace esta copia para que cuando se recorra la cola original y por cada nodo se cree un nuevo nodo con los mismos datos.
 	ColaSpawn(const ColaSpawn& otra) {
-		frente = NULL;
-		final = NULL;
+		frente = nullptr;
+		final = nullptr;
 		tam = 0;
 		NodoAparicion* Aux = otra.frente;
-		while (Aux != NULL) {
+		while (Aux != nullptr) {
 			encolar(Aux->dato);
 			Aux = Aux->sig;
 		}
@@ -327,16 +328,16 @@ public:
 	ColaSpawn& operator=(const ColaSpawn& otra) {
 		if (this != &otra) {
 			NodoAparicion* Aux = frente;
-			while (Aux != NULL) {
+			while (Aux != nullptr) {
 				NodoAparicion* borrar = Aux;
 				Aux = Aux->sig;
 				delete borrar;
 			}
-			frente = NULL;
-			final = NULL;
+			frente = nullptr;
+			final = nullptr;
 			tam = 0;
 			Aux = otra.frente;
-			while (Aux != NULL) {
+			while (Aux != nullptr) {
 				encolar(Aux->dato);
 				Aux = Aux->sig;
 			}
@@ -348,7 +349,7 @@ public:
 	// Se utiliza un sig para que al hacer delete no se pierda el resto de la cola.
 	~ColaSpawn() {
 		NodoAparicion* Aux = frente;
-		while (Aux != NULL) {
+		while (Aux != nullptr) {
 			NodoAparicion* borrar = Aux;
 			Aux = Aux->sig;
 			delete borrar;
@@ -360,8 +361,8 @@ public:
 	void encolar(const Aparicion& a) {
 		NodoAparicion* nuevo = new(NodoAparicion);
 		nuevo->dato = a;
-		nuevo->sig = NULL;
-		if (final == NULL) {
+		nuevo->sig = nullptr;
+		if (final == nullptr) {
 			frente = nuevo;
 		}
 		else {
@@ -372,16 +373,16 @@ public:
 	}
 
 	// Esta función es para sacar la aparición que está en el frente de la cola. Guarda el dato en salida y devuelve true si se pudo sacar,
-	// si la cola está vacía no hace nada y devuelve false. Si al sacarla la cola queda vacía se pone al final en NULL.
+	// si la cola está vacía no hace nada y devuelve false. Si al sacarla la cola queda vacía se pone al final en nullptr.
 	bool desencolar(Aparicion& salida) {
-		if (frente == NULL) {
+		if (frente == nullptr) {
 			return false;
 		}
 		NodoAparicion* borrar = frente;
 		salida = borrar->dato;
 		frente = borrar->sig;
-		if (frente == NULL) {
-			final = NULL;
+		if (frente == nullptr) {
+			final = nullptr;
 		}
 		delete borrar;
 		tam--;
@@ -389,10 +390,10 @@ public:
 	}
 
 	// Esta función es para ver la aparición que está en el frente sin sacarla de la cola. Devuelve un puntero const para que no se pueda modificar
-	// y si la cola está vacía devuelve NULL.
+	// y si la cola está vacía devuelve nullptr.
 	const Aparicion* verFrente() const {
-		if (frente == NULL) {
-			return NULL;
+		if (frente == nullptr) {
+			return nullptr;
 		}
 		return &(frente->dato);
 	}
@@ -474,7 +475,7 @@ Enemigo crearMini(const Enemigo& divisor, int id, double desplazamientoAngular, 
 void moverTodosLosEnemigos(ListaEnemigos& enemigos,int oleada) {
 	NodoEnemigo* actual = enemigos.primero();
 
-	while (actual != NULL) {
+	while (actual != nullptr) {
 		moverEnemigo(actual->dato, oleada);
 		actual = actual->sig;
 	}
@@ -593,7 +594,7 @@ void avanzarPulso(Pulso& pulso, ListaEnemigos& enemigos, Jugador& jugador) {
 
 	NodoEnemigo* actual = enemigos.primero();
 
-	while (actual != NULL) {
+	while (actual != nullptr) {
 		NodoEnemigo* siguiente = actual->sig;
 
 		double diferencia = fabs(actual->dato.r - pulso.radio_actual);
@@ -612,7 +613,7 @@ void avanzarPulso(Pulso& pulso, ListaEnemigos& enemigos, Jugador& jugador) {
 }
 
 // En este struct se establece el nodo de la lista circular de jugadores, cada nodo guarda un puntero al jugador y como se explico en funciones anteriores al ser una lista doble se puede recorrer hacia adelante y atrás. 
-// En esta lista ningún nodo apunta a NULL, ya que el primer nodo apunta al último y el último al primero.
+// En esta lista ningún nodo apunta a nullptr, ya que el primer nodo apunta al último y el último al primero.
 struct NodoJugador {
 	Jugador* j;
 	NodoJugador* ant;
@@ -627,11 +628,11 @@ class RondaJugadores {
 public:
 	// Esta parte como en funciones anteriores deja la ronda vacía y el tamaño en cero ya que su finalidad es ser el constructor de la ronda.
 	RondaJugadores() {
-		actual = NULL;
+		actual = nullptr;
 		tam = 0;
 	}
 
-	// Esta parte se ejecuta cuando la ronda deja de existir y libera todos los nodos para no dejar memoria basura. Como la lista es circular no hay un NULL que marque el final,
+	// Esta parte se ejecuta cuando la ronda deja de existir y libera todos los nodos para no dejar memoria basura. Como la lista es circular no hay un nullptr que marque el final,
 	// por eso se recorre exactamente tam (cantidad  establecida) veces y se avanza al siguiente nodo antes de hacer el delete. Los jugadores no se borran porque no pertenecen a la ronda.
 	~RondaJugadores() {
 		NodoJugador* Aux = actual;
@@ -652,7 +653,7 @@ public:
 	void agregar(Jugador* j) {
 		NodoJugador* nuevo = new(NodoJugador);
 		nuevo->j = j;
-		if (actual == NULL) {
+		if (actual == nullptr) {
 			nuevo->ant = nuevo;
 			nuevo->sig = nuevo;
 			actual = nuevo;
@@ -668,7 +669,7 @@ public:
 
 	// Esta función es para pasar el turno al siguiente jugador. Si horario es true se avanza al siguiente nodo y si es false se devuelve al anterior.
 	void avanzar(bool horario) {
-		if (actual == NULL) {
+		if (actual == nullptr) {
 			return;
 		}
 		if (horario == true) {
@@ -680,15 +681,15 @@ public:
 	}
 
 	// En esta parte se elimina el jugador actual y devuelve el jugador eliminado para poder cerrar sus estadísticas. El nuevo actual es el siguiente si horario es true
-	// o el anterior si es false, para seguir con el recorrido en el mismo sentido. Si era el único jugador la ronda queda vacía y actual en NULL, y si la ronda ya estaba vacía devuelve NULL.
+	// o el anterior si es false, para seguir con el recorrido en el mismo sentido. Si era el único jugador la ronda queda vacía y actual en nullptr, y si la ronda ya estaba vacía devuelve nullptr.
 	Jugador* eliminarActual(bool horario) {
-		if (actual == NULL) {
-			return NULL;
+		if (actual == nullptr) {
+			return nullptr;
 		}
 		NodoJugador* borrar = actual;
 		Jugador* eliminado = borrar->j;
 		if (tam == 1) {
-			actual = NULL;
+			actual = nullptr;
 		}
 		else {
 			borrar->ant->sig = borrar->sig;
@@ -705,10 +706,10 @@ public:
 		return eliminado;
 	}
 
-	// Esta función es para ver el jugador al que le toca jugar sin cambiar el turno, si la ronda está vacía devuelve NULL.
+	// Esta función es para ver el jugador al que le toca jugar sin cambiar el turno, si la ronda está vacía devuelve nullptr.
 	Jugador* verActual() const {
-		if (actual == NULL) {
-			return NULL;
+		if (actual == nullptr) {
+			return nullptr;
 		}
 		return actual->j;
 	}
@@ -1183,49 +1184,75 @@ public:
 };
 
 int main()
-{
-	Motor motor;
+{	
+		Jugador jugador;
+		ListaBalas balas;
 
-	cout << "----- SIMULACION FASE ORBITAL -----\n" << endl;
-
-	for (int tick = 0; tick < 200; tick++) {
-		Accion accion{};
-
-		accion.tieneGiro = false;
-		accion.anguloObjetivo = 0.0;
-
-		accion.tieneColor = false;
-		accion.color = Color::MAGENTA;
-
-		accion.activarPulso = false;
-
-		// Acción falsa en el tick 0.
-		if (tick == 0) {
-			accion.tieneColor = true;
-			accion.color = Color::MAGENTA;
+		for (int tick = 0; tick <= 8; tick++) {
+			printf("creando bala...");
+			procesarTick(tick, jugador, balas);
 		}
 
-		// Girar hacia 90 grados en el tick 15.
-		if (tick == 15) {
-			accion.tieneGiro = true;
-			accion.anguloObjetivo = 90.0;
+		cout << balas.tamano() << endl;
+
+		// Inicializar Allegro
+		if (!al_init()) {
+			cerr << "No se pudo inicializar Allegro." << endl;
+			return -1;
 		}
 
-		// Cambiar a otro color en el tick 40.
-		if (tick == 40) {
-			accion.tieneColor = true;
-			accion.color = Color::CIAN;
+		// Crear ventana
+		ALLEGRO_DISPLAY* ventana = al_create_display(800, 600);
+		if (!ventana) {
+			cerr << "No se pudo crear la ventana." << endl;
+			return -1;
 		}
 
-		// Intentar activar el pulso en el tick 80.
-		if (tick == 80) {
-			accion.activarPulso = true;
+		// Crear cola de eventos
+		ALLEGRO_EVENT_QUEUE* cola = al_create_event_queue();
+		if (!cola) {
+			cerr << "No se pudo crear la cola de eventos." << endl;
+			al_destroy_display(ventana);
+			return -1;
 		}
 
-		motor.tick(accion);
-		motor.imprimirEstado();
+		// Crear timer de 30 ticks por segundo
+		ALLEGRO_TIMER* timer = al_create_timer(1.0 / 30.0);
+		if (!timer) {
+			cerr << "No se pudo crear el timer." << endl;
+			al_destroy_event_queue(cola);
+			al_destroy_display(ventana);
+			return -1;
+		}
+
+		// Escuchar eventos de la ventana y del timer
+		al_register_event_source(
+			cola,
+			al_get_display_event_source(ventana)
+		);
+		al_register_event_source(
+			cola,
+			al_get_timer_event_source(timer)
+		);
+
+		al_start_timer(timer);
+
+		// Mantener la ventana abierta hasta que la cierren
+		bool ejecutando = true;
+
+		while (ejecutando) {
+			ALLEGRO_EVENT evento;
+			al_wait_for_event(cola, &evento);
+
+			if (evento.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+				ejecutando = false;
+			}
+		}
+
+		// Liberar recursos
+		al_destroy_timer(timer);
+		al_destroy_event_queue(cola);
+		al_destroy_display(ventana);
+
+		return 0;
 	}
-
-	cout << "\\nSimulacion terminada.\\n";
-	return 0;
-}

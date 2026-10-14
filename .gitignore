@@ -74,3 +74,4 @@ Release/
 *.user
 *.suo
 *.vsidx
+packages/
