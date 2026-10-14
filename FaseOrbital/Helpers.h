@@ -1,4 +1,5 @@
 #include <cmath>
+#include <iostream>
 
 constexpr double PI = 3.141592;
 
@@ -29,7 +30,7 @@ double aRadianes(double grados) {
 	return grados * PI / 180.0;
 }
 
-double distancia(double x1, double x2, double y1, double y2) {
+double distancia(double x1, double y1, double x2, double y2) {
 	double dx = x1 - x2;
 	double dy = y1 - y2;
 	return std::sqrt(dx * dx + dy * dy);
@@ -44,4 +45,16 @@ int calcMultiplicador(int combo) {
 	
 	return multiplicador;
 
+}
+
+double velocidadBaseEnemigo(int oleada) {
+	return 0.8 + 0.08 * oleada;
+}
+
+int numEnemigos(int oleada) {
+	return 6 + 3 * oleada;
+}
+
+long long semillaOleada(int oleada, int semilla) {
+	return semilla * 1000LL + oleada;
 }
