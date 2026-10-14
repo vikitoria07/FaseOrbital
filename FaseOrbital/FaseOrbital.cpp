@@ -61,7 +61,7 @@ public:
 	// la siguiente función es para insertar un enemigo al final de la lista y devuelve el nodo creado.
 	//Si la lista estaba vacía, el nodo nuevo es a la vez la cabeza y la cola.
 	NodoEnemigo* insertarFinal(const Enemigo& e) {
-		NodoEnemigo* nuevo = new(NodoEnemigo);
+		NodoEnemigo* nuevo = new NodoEnemigo;
 		nuevo->dato = e;
 		nuevo->sig = NULL;
 		nuevo->ant = cola;
@@ -82,7 +82,7 @@ public:
 		if (n == NULL) {
 			return NULL;
 		}
-		NodoEnemigo* nuevo = new(NodoEnemigo);
+		NodoEnemigo* nuevo = new NodoEnemigo;
 		nuevo->dato = e;
 		nuevo->ant = n;
 		nuevo->sig = n->sig;
@@ -125,11 +125,6 @@ public:
 	int tamano() const { return tam; }
 	bool vacia() const { return tam == 0; }
 };
-
-
-double velocidadBaseEnemigo(int oleada) {
-	return 0.8 + 0.08 * oleada;
-}
 
 void moverEnemigo(Enemigo& enemigo, int oleada) {
 	double velocidad = velocidadBaseEnemigo(oleada);
@@ -188,6 +183,7 @@ struct Bala {
 	double x, y, vx, vy;
 	int color;
 	int duenio;
+	bool marcada;
 };
 
 // Este struct establece el nodo de la lista simple de balas.
@@ -272,8 +268,9 @@ Bala crearBalaAutomatica(const Jugador& jugador, int identificadorJugador) {
 	bala.vx = VELOCIDAD_BALA * cos(anguloRadianes);
 	bala.vy = VELOCIDAD_BALA * sin(anguloRadianes);
 
-	bala.color = jugador.obtenerColorActual();
+	bala.color = static_cast<int>(jugador.obtenerColorActual());
 	bala.duenio = identificadorJugador;
+	bala.marcada = false;
 
 	return bala;
 }
@@ -513,7 +510,7 @@ bool enemigoChocoNave(const Enemigo& enemigo,const Jugador& jugador) {
 	double naveY = 100.0 * sin(angulo);
 
 	double enemigoPosX = enemigoX(enemigo);
-	double enemigoPosY = enemigoX(enemigo);
+	double enemigoPosY = enemigoY(enemigo);
 
 	// sacamos la distancia entre la nave y el enemigo
 	double distanciaColision = distancia(enemigoPosX, enemigoPosY, naveX, naveY);
@@ -547,10 +544,11 @@ int puntosPorTipo(TipoEnemigo tipo) {
 	}
 }
 
-void impacto(Bala& bala, Enemigo& enemigo, Jugador& jugador) {
+void resolverImpacto(Bala& bala, Enemigo& enemigo, Jugador& jugador) {
 
 	// Si hubo un tiro fallido se resetea el combo
 	if (bala.color != enemigo.color) {
+		cout << "[IMPACTO INCORRECTO]" << endl;
 		enemigo.r += 9.0;
 		jugador.resetearCombo();
 		return;
@@ -789,16 +787,6 @@ void procesarTick(int tick, Jugador& jugador, ListaBalas& listaBalas) {
 	}
 }
 
-int numEnemigos(int oleada) {
-	return 6+3*oleada;
-}
-
-int semillaOleada(int oleada, int semilla) {
-	return semilla * 1000 + oleada;
-}
-
-// GENERADOR DE OLEADAS
-
 ColaSpawn generarOleada(int oleada, int semilla) {
 	ColaSpawn nuevaOleada;
 
@@ -874,7 +862,7 @@ ColaSpawn generarOleada(int oleada, int semilla) {
 
 		int intervaloBase = 35 - 2 * oleada;
 
-		if (intervaloBase > 9) {
+		if (intervaloBase < 9) {
 			intervaloBase = 9;
 		}
 
@@ -892,20 +880,352 @@ ColaSpawn generarOleada(int oleada, int semilla) {
 	return nuevaOleada;
 }
 
-// MOVIMIENTO DE LA NAVE
+enum class TipoAccion {
+	NONE, 
+	GIRAR_A,
+	CAMBIAR_COLOR,
+	ACTIVAR_PULSO
+};
 
-// Esta es la función principal del programa, se encarga de ejecutar las pruebas requeridas para comprobar que funcionan y mostrar los resultados.
-int main()
-{
-	Jugador jugador;
+struct Accion {
+	TipoAccion tipo;
+	bool tieneGiro;
+	float anguloObjetivo;
+	bool tieneColor;
+	Color color;
+	bool activarPulso;
 
+	Accion()
+		: tipo(TipoAccion::NONE),
+		tieneGiro(false),
+		anguloObjetivo(0.0f),
+		tieneColor(true),
+		color(Color::MAGENTA),
+		activarPulso(false)
+	{}
+};
+
+void controlador(const Accion& accion, Jugador& jugador) {
+	switch (accion.tipo) {
+	case TipoAccion::GIRAR_A:
+		jugador.girarHacia(accion.anguloObjetivo);
+		break;
+	case TipoAccion::CAMBIAR_COLOR:
+		jugador.cambiarColorActual(accion.color);
+		break;
+	case TipoAccion::ACTIVAR_PULSO:
+		break;
+	case TipoAccion::NONE:
+		break;
+	}
+}
+
+
+class Motor {
+private:
+	int tickActual;
+	int oleadaActual;
+	int siguienteEnemigo;
+	int semillaPartida;
+	bool oleadaTerminada;
+
+	Jugador jugadorActual;
+	ColaSpawn colaSpawn;
+	ListaEnemigos enemigos;
 	ListaBalas balas;
-	// probargenerador de balas
-	for (int tick = 0; tick <= 8; tick++) {
-		printf("creando bala...");
-		procesarTick(tick, jugador, balas);
+	Pulso pulso;
+
+public:
+	Motor()
+		: tickActual(0),
+		oleadaActual(1),
+		siguienteEnemigo(1),
+		semillaPartida(42),
+		oleadaTerminada(false),
+		pulso{ false, 0.0 } {
+		colaSpawn = generarOleada(oleadaActual, semillaPartida);
+	};
+
+	void leerAcciones(const Accion& accion) {
+		if (accion.tieneGiro) {
+			cout << "[ACCION] Girando..." << endl;
+
+			jugadorActual.girarHacia(accion.anguloObjetivo);
+		}
+
+		if (accion.tieneColor) {
+			cout << "[ACCION] Cambiando color..." << endl;
+
+			jugadorActual.cambiarColorActual(
+				static_cast<Color>(accion.color)
+			);
+		}
+		if (accion.activarPulso) {
+			cout << "[ACCION] Activando Pulso..." << endl;
+
+			activarPulso(pulso, jugadorActual);
+		}
 	}
 
-	cout << balas.tamano() << endl;
+	void actualizarNave() {
+		// actualizar coordenadas visuales
+	}
+
+	void generarEnemigos() {
+		while (!colaSpawn.vacia()) {
+			const Aparicion* frente = colaSpawn.verFrente();
+
+			if (frente == NULL || frente->tick > tickActual) {
+				break;
+			}
+
+			Aparicion aparicion;
+			colaSpawn.desencolar(aparicion);
+
+			Enemigo enemigo = crearEnemigoAparicion(
+				aparicion,
+				siguienteEnemigo++
+			);
+
+			enemigos.insertarFinal(enemigo);
+		}
+	}
+
+	void disparoAutomatico() {
+		if (tickActual % 4 == 0) {
+			Bala bala = crearBalaAutomatica(
+				jugadorActual,
+				jugadorActual.obtenerIdentificador()
+			);
+
+			balas.insertarInicio(bala);
+		}
+	}
+
+	void moverEnemigos() {
+		NodoEnemigo* actual = enemigos.primero();
+
+		while (actual != NULL) {
+			moverEnemigo(actual->dato, oleadaActual);
+			actual = actual->sig;
+		}
+	}
+
+	void resolverColisionesEnemigos() {
+		NodoEnemigo* actual = enemigos.primero();
+
+		while (actual != NULL) {
+			if (enemigoAlcanzoNucelo(actual->dato, jugadorActual)) {
+				NodoEnemigo* siguiente = enemigos.eliminar(actual);
+				actual = siguiente;
+				continue;
+			}
+
+			if (enemigoChocoNave(actual->dato, jugadorActual)) {
+				jugadorActual.recibirDanno(12);
+				jugadorActual.resetearCombo();
+
+				NodoEnemigo* siguiente = enemigos.eliminar(actual);
+				actual = siguiente;
+				continue;
+			}
+
+			actual = actual->sig;
+		}
+	}
+
+	void moverBalasResolverImpactos() {
+		NodoBala* balaActual = balas.primero();
+
+		while (balaActual != NULL) {
+			balaActual->dato.x += balaActual->dato.vx;
+			balaActual->dato.y += balaActual->dato.vy;
+
+			NodoEnemigo* enemigoActual = enemigos.primero();
+
+			while (enemigoActual != NULL) {
+				if (balaImpactaEnemigo(
+					balaActual->dato,
+					enemigoActual->dato
+				)) {
+
+					cout << "[IMPACTO] Bala color " << balaActual->dato.color << " contra enemigo color " << enemigoActual->dato.color << endl;
+					resolverImpacto(
+						balaActual->dato,
+						enemigoActual->dato,
+						jugadorActual
+					);
+
+					balaActual->dato.marcada = true;
+
+					if (enemigoActual->dato.vida <= 0) {
+						NodoEnemigo* siguiente =
+							enemigoActual->sig;
+
+						enemigos.eliminar(enemigoActual);
+						enemigoActual = siguiente;
+					}
+
+					break;
+				}
+
+				enemigoActual = enemigoActual->sig;
+			}
+
+			double radioBala = std::sqrt(
+				balaActual->dato.x * balaActual->dato.x +
+				balaActual->dato.y * balaActual->dato.y
+			);
+
+			if (radioBala > 320.0) {
+				balaActual->dato.marcada = true;
+			}
+
+			balaActual = balaActual->sig;
+		}
+
+		balas.eliminarSi([](const Bala& bala) {
+			return bala.marcada;
+			});
+
+
+
+
+	}
+	void procesarPulso() {
+		avanzarPulso(
+			pulso,
+			enemigos,
+			jugadorActual
+		);
+	}
+
+	void actualizarStats() {
+		// PENDIENTE
+	}
+
+	void verificarFin() {
+		// PENDIENTE
+		if (!colaSpawn.vacia() || !enemigos.vacia()) {
+			return;
+		}
+
+		if (oleadaTerminada) {
+			return;
+		}
+
+		if (oleadaActual > 10) {
+			return;
+		}
+
+		oleadaTerminada = true;
+
+		cout << "[FIN] Oleada " << oleadaActual << "terminada" << endl;
+
+		oleadaActual++;
+
+		colaSpawn = generarOleada(
+			oleadaActual,
+			semillaPartida
+		);
+
+		oleadaTerminada = false;
+	}
+
+	void imprimirEstado() const {
+
+		int tickMostrado = tickActual > 0 ? tickActual - 1 : 0;
+
+		cout << "Tick: " << tickActual
+			<< " | Oleada: " << oleadaActual
+			<< " | Enemigos: " << enemigos.tamano()
+			<< " | Balas: " << balas.tamano()
+			<< " | Vida: " << jugadorActual.obtenerVidaNucleo()
+			<< " | Puntaje: " << jugadorActual.obtenerPuntaje()
+			<< " | Combo: " << jugadorActual.obtenerComboActual()
+			<< endl;
+	}
+
+	void tick(const Accion& accion) {
+
+		cout << "Leyendo Acciones..." << endl;
+		leerAcciones(accion);
+
+		cout << "Actualizando la nave..." << endl;
+		actualizarNave();
+
+		cout << "Generando enemigos..." << endl;
+		generarEnemigos();
+
+		cout << "Disparando..." << endl;
+		disparoAutomatico();
+
+		cout << "Moviendo enemigos..." << endl;
+		moverEnemigos();
+
+		cout << "Resolviendo Colisiones..." << endl;
+		resolverColisionesEnemigos();
+
+		cout << "Moviendo balas y resolviendo impactos..." << endl;
+		moverBalasResolverImpactos();
+
+		cout << "Procesando pulso..." << endl;
+		procesarPulso();
+
+		cout << "Actualizando stats..." << endl;
+		actualizarStats();
+
+		cout << "Verificando fin de la partida..." << endl;
+		verificarFin();
+
+		tickActual++;
+	}
+};
+
+int main()
+{
+	Motor motor;
+
+	cout << "----- SIMULACION FASE ORBITAL -----\n" << endl;
+
+	for (int tick = 0; tick < 200; tick++) {
+		Accion accion{};
+
+		accion.tieneGiro = false;
+		accion.anguloObjetivo = 0.0;
+
+		accion.tieneColor = false;
+		accion.color = Color::MAGENTA;
+
+		accion.activarPulso = false;
+
+		// Acción falsa en el tick 0.
+		if (tick == 0) {
+			accion.tieneColor = true;
+			accion.color = Color::MAGENTA;
+		}
+
+		// Girar hacia 90 grados en el tick 15.
+		if (tick == 15) {
+			accion.tieneGiro = true;
+			accion.anguloObjetivo = 90.0;
+		}
+
+		// Cambiar a otro color en el tick 40.
+		if (tick == 40) {
+			accion.tieneColor = true;
+			accion.color = Color::CIAN;
+		}
+
+		// Intentar activar el pulso en el tick 80.
+		if (tick == 80) {
+			accion.activarPulso = true;
+		}
+
+		motor.tick(accion);
+		motor.imprimirEstado();
+	}
+
+	cout << "\\nSimulacion terminada.\\n";
 	return 0;
 }

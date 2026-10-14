@@ -1,5 +1,7 @@
-enum Color { CIAN=0, MAGENTA=1, AMARILLO=2};
 #include <cmath>
+#include <string>
+
+enum Color { CIAN = 0, MAGENTA = 1, AMARILLO = 2 };
 
 class Jugador {
 private:
@@ -24,17 +26,17 @@ private:
 		}
 
 		return angulo;
-}
+	}
 
 public:
 	// Constructor: Inicializa los atributos del jugador con valores predeterminados.
 	Jugador() :
-		nombre(""),
+		nombre("nombreJugador"),
 		identificador(0),
 		posicion_angular(270.0f),
 		color_actual(Color::MAGENTA),
-		carga_pulse(100),
-		puntaje(0),
+		carga_pulse(0.0f),
+		puntaje(0.0f),
 		combo_actual(0),
 		combo_maximo(0),
 		eliminado(false),
@@ -51,7 +53,7 @@ public:
 	int obtenerVidaNucleo() const {
 		return vida_nucleo;
 	}
-	int obtenerColorActual() const {
+	Color obtenerColorActual() const {
 		return color_actual;
 	}
 	float obtenerCargaPulse() const {
@@ -106,13 +108,14 @@ public:
 	}
 	// SOLO CUANDO PIERDE LA PARTIDA, SE REINICIAN TODOS LOS ATRIBUTOS DEL JUGADOR A SUS VALORES INICIALES.
 	void reiniciarJugador() {
-		posicion_angular = 0.0f;
+		posicion_angular = 270.0f;
 		color_actual = Color::MAGENTA;
-		carga_pulse = 100.0f;
+		carga_pulse = 0.0f;
 		puntaje = 0.0f;
 		combo_actual = 0;
 		combo_maximo = 0;
 		eliminado = false;
+		vida_nucleo = 100;
 	}
 	void cambiarComboMaximo(int nuevo_combo_maximo) {
 		combo_maximo = nuevo_combo_maximo;
@@ -124,7 +127,7 @@ public:
 	void girarHacia(float angulo) {
 		angulo = normalizarAngulo(angulo);
 
-		float dif = angulo - obtenerPosicionAngular();
+		float dif = angulo - posicion_angular;
 
 		if (dif > 180.0f) {
 			dif -= 360.0f;
@@ -134,18 +137,24 @@ public:
 		}
 
 		if (std::fabs(dif) <= 6.0f) {
-			cambiarPosicionAngular(angulo);
+			posicion_angular = angulo;
 		}
 		else if (dif > 0.0f) {
-			cambiarPosicionAngular(posicion_angular + 6.0f);
+			posicion_angular += 6.0f;
 		}
 		else {
-			cambiarPosicionAngular(posicion_angular - 6.0f);
+			posicion_angular -= 6.0f;
 		}
+
+		posicion_angular = normalizarAngulo(posicion_angular);
 	}
 
 	void recibirDanno(int danno) {
 		vida_nucleo -= danno;
+
+		if (vida_nucleo < 0) {
+			vida_nucleo = 0;
+		}
 	}
 	void reiniciarNucleo() {
 		vida_nucleo = 100;
