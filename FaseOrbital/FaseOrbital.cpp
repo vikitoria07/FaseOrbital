@@ -901,95 +901,126 @@ enum class TipoAccion {
 	ACTIVAR_PULSO
 };
 
+// ============================================================
+// ACCIONES
+// ============================================================
+
 struct Accion {
-	TipoAccion tipo;
 	bool tieneGiro;
 	float anguloObjetivo;
+
 	bool tieneColor;
 	Color color;
+
 	bool activarPulso;
 
 	Accion()
-		: tipo(TipoAccion::NONE),
-		tieneGiro(false),
+		: tieneGiro(false),
 		anguloObjetivo(0.0f),
-		tieneColor(true),
+		tieneColor(false),
 		color(Color::MAGENTA),
-		activarPulso(false)
-	{}
+		activarPulso(false) {
+	}
 };
 
-void controlador(const Accion& accion, Jugador& jugador) {
-	switch (accion.tipo) {
-	case TipoAccion::GIRAR_A:
-		jugador.girarHacia(accion.anguloObjetivo);
-		break;
-	case TipoAccion::CAMBIAR_COLOR:
-		jugador.cambiarColorActual(accion.color);
-		break;
-	case TipoAccion::ACTIVAR_PULSO:
-		break;
-	case TipoAccion::NONE:
-		break;
-	}
-}
 
+// ============================================================
+// MOTOR
+// ============================================================
 
 class Motor {
 private:
 	int tickActual;
+	int ultimoTickProcesado;
 	int oleadaActual;
+	int tickInicioOleada;
 	int siguienteEnemigo;
 	int semillaPartida;
-	bool oleadaTerminada;
+	bool partidaTerminada;
 
 	Jugador jugadorActual;
 	ColaSpawn colaSpawn;
 	ListaEnemigos enemigos;
 	ListaBalas balas;
 	Pulso pulso;
+	Accion accionPendiente;
 
-public:
-	Motor()
-		: tickActual(0),
-		oleadaActual(1),
-		siguienteEnemigo(1),
-		semillaPartida(42),
-		oleadaTerminada(false),
-		pulso{ false, 0.0 } {
-		colaSpawn = generarOleada(oleadaActual, semillaPartida);
-	};
+	// FAS-50: elige el enemigo elegible con menor radio,
+	// prepara el giro y el cambio de color, y decide si activa el pulso.
+	Accion decidirAccionBot() const {
+		Accion accion;
 
-	void leerAcciones(const Accion& accion) {
-		if (accion.tieneGiro) {
-			cout << "[ACCION] Girando..." << endl;
+		const NodoEnemigo* objetivo = nullptr;
+		int enemigosCercanos = 0;
 
-			jugadorActual.girarHacia(accion.anguloObjetivo);
+		for (const NodoEnemigo* actual = enemigos.primero();
+			actual != nullptr;
+			actual = actual->sig) {
+			const Enemigo& enemigo = actual->dato;
+
+			if (enemigo.r < 160.0) {
+				++enemigosCercanos;
+			}
+
+			if (enemigo.r > 100.0 &&
+				(objetivo == nullptr ||
+					enemigo.r < objetivo->dato.r)) {
+				objetivo = actual;
+			}
 		}
 
-		if (accion.tieneColor) {
-			cout << "[ACCION] Cambiando color..." << endl;
+		if (objetivo != nullptr) {
+			accion.tieneGiro = true;
+			accion.anguloObjetivo =
+				static_cast<float>(objetivo->dato.theta);
 
-			jugadorActual.cambiarColorActual(
-				static_cast<Color>(accion.color)
+			const Color colorObjetivo =
+				static_cast<Color>(objetivo->dato.color);
+
+			if (jugadorActual.obtenerColorActual() !=
+				static_cast<int>(colorObjetivo)) {
+				accion.tieneColor = true;
+				accion.color = colorObjetivo;
+			}
+		}
+
+		accion.activarPulso =
+			jugadorActual.obtenerCargaPulse() >= 100.0f &&
+			enemigosCercanos >= 5;
+
+		return accion;
+	}
+
+	// 1. Leer acciones: aquí se guardan para aplicarlas en su etapa.
+	void leerAcciones(const Accion& accion) {
+		accionPendiente = accion;
+	}
+
+	// 2. Actualizar nave.
+	void actualizarNave() {
+		if (accionPendiente.tieneGiro) {
+			jugadorActual.girarHacia(
+				accionPendiente.anguloObjetivo
 			);
 		}
-		if (accion.activarPulso) {
-			cout << "[ACCION] Activando Pulso..." << endl;
 
-			activarPulso(pulso, jugadorActual);
+		if (accionPendiente.tieneColor) {
+			jugadorActual.cambiarColorActual(
+				accionPendiente.color
+			);
 		}
 	}
 
-	void actualizarNave() {
-		// actualizar coordenadas visuales
-	}
-
+	// 3. Insertar en el juego las apariciones cuyo tick ya llegó.
 	void generarEnemigos() {
+		const int tickRelativoOleada =
+			tickActual - tickInicioOleada;
+
 		while (!colaSpawn.vacia()) {
 			const Aparicion* frente = colaSpawn.verFrente();
 
-			if (frente == NULL || frente->tick > tickActual) {
+			if (frente == nullptr ||
+				frente->tick > tickRelativoOleada) {
 				break;
 			}
 
@@ -1005,6 +1036,7 @@ public:
 		}
 	}
 
+	// 4. Crear una bala cada cuatro ticks.
 	void disparoAutomatico() {
 		if (tickActual % 4 == 0) {
 			Bala bala = crearBalaAutomatica(
@@ -1016,31 +1048,36 @@ public:
 		}
 	}
 
+	// 5. Mover todos los enemigos.
 	void moverEnemigos() {
-		NodoEnemigo* actual = enemigos.primero();
-
-		while (actual != NULL) {
+		for (NodoEnemigo* actual = enemigos.primero();
+			actual != nullptr;
+			actual = actual->sig) {
 			moverEnemigo(actual->dato, oleadaActual);
-			actual = actual->sig;
 		}
 	}
 
+	// 6. Resolver colisiones de enemigos con núcleo y nave.
 	void resolverColisionesEnemigos() {
 		NodoEnemigo* actual = enemigos.primero();
 
-		while (actual != NULL) {
-			if (enemigoAlcanzoNucelo(actual->dato, jugadorActual)) {
-				NodoEnemigo* siguiente = enemigos.eliminar(actual);
-				actual = siguiente;
+		while (actual != nullptr) {
+			if (enemigoAlcanzoNucelo(
+				actual->dato,
+				jugadorActual
+			)) {
+				actual = enemigos.eliminar(actual);
 				continue;
 			}
 
-			if (enemigoChocoNave(actual->dato, jugadorActual)) {
+			if (enemigoChocoNave(
+				actual->dato,
+				jugadorActual
+			)) {
 				jugadorActual.recibirDanno(12);
 				jugadorActual.resetearCombo();
 
-				NodoEnemigo* siguiente = enemigos.eliminar(actual);
-				actual = siguiente;
+				actual = enemigos.eliminar(actual);
 				continue;
 			}
 
@@ -1048,22 +1085,21 @@ public:
 		}
 	}
 
-	void moverBalasResolverImpactos() {
-		NodoBala* balaActual = balas.primero();
-
-		while (balaActual != NULL) {
+	// 7. Mover balas y resolver sus impactos.
+	void moverBalasYResolverImpactos() {
+		for (NodoBala* balaActual = balas.primero();
+			balaActual != nullptr;
+			balaActual = balaActual->sig) {
 			balaActual->dato.x += balaActual->dato.vx;
 			balaActual->dato.y += balaActual->dato.vy;
 
 			NodoEnemigo* enemigoActual = enemigos.primero();
 
-			while (enemigoActual != NULL) {
+			while (enemigoActual != nullptr) {
 				if (balaImpactaEnemigo(
 					balaActual->dato,
 					enemigoActual->dato
 				)) {
-
-					cout << "[IMPACTO] Bala color " << balaActual->dato.color << " contra enemigo color " << enemigoActual->dato.color << endl;
 					resolverImpacto(
 						balaActual->dato,
 						enemigoActual->dato,
@@ -1073,20 +1109,17 @@ public:
 					balaActual->dato.marcada = true;
 
 					if (enemigoActual->dato.vida <= 0) {
-						NodoEnemigo* siguiente =
-							enemigoActual->sig;
-
 						enemigos.eliminar(enemigoActual);
-						enemigoActual = siguiente;
 					}
 
+					// Una bala solo puede impactar a un enemigo.
 					break;
 				}
 
 				enemigoActual = enemigoActual->sig;
 			}
 
-			double radioBala = std::sqrt(
+			const double radioBala = std::sqrt(
 				balaActual->dato.x * balaActual->dato.x +
 				balaActual->dato.y * balaActual->dato.y
 			);
@@ -1094,178 +1127,145 @@ public:
 			if (radioBala > 320.0) {
 				balaActual->dato.marcada = true;
 			}
-
-			balaActual = balaActual->sig;
 		}
 
 		balas.eliminarSi([](const Bala& bala) {
 			return bala.marcada;
 			});
-
-
-
-
 	}
+
+	// 8. Activar y avanzar el pulso.
 	void procesarPulso() {
-		avanzarPulso(
-			pulso,
-			enemigos,
-			jugadorActual
-		);
+		if (accionPendiente.activarPulso) {
+			activarPulso(pulso, jugadorActual);
+		}
+
+		avanzarPulso(pulso, enemigos, jugadorActual);
 	}
 
-	void actualizarStats() {
-		// PENDIENTE
+	// 9. Lugar reservado para actualizar estadísticas.
+	void actualizarEstadisticas() {
+		// Conectar aquí los contadores y la bitácora cuando estén implementados.
 	}
 
+	// 10. Verificar fin de partida y avance de oleada.
 	void verificarFin() {
-		// PENDIENTE
+		if (jugadorActual.obtenerVidaNucleo() <= 0) {
+			partidaTerminada = true;
+			cout << "[FIN] Partida terminada: núcleo destruido."
+				<< endl;
+			return;
+		}
+
 		if (!colaSpawn.vacia() || !enemigos.vacia()) {
 			return;
 		}
 
-		if (oleadaTerminada) {
-			return;
-		}
+		cout << "[FIN] Oleada " << oleadaActual
+			<< " terminada." << endl;
 
-		if (oleadaActual > 10) {
-			return;
-		}
-
-		oleadaTerminada = true;
-
-		cout << "[FIN] Oleada " << oleadaActual << "terminada" << endl;
-
-		oleadaActual++;
+		++oleadaActual;
+		tickInicioOleada = tickActual + 1;
 
 		colaSpawn = generarOleada(
 			oleadaActual,
 			semillaPartida
 		);
+	}
 
-		oleadaTerminada = false;
+public:
+	Motor()
+		: tickActual(0),
+		ultimoTickProcesado(-1),
+		oleadaActual(1),
+		tickInicioOleada(0),
+		siguienteEnemigo(1),
+		semillaPartida(42),
+		partidaTerminada(false),
+		pulso{ false, 0.0 } {
+		colaSpawn = generarOleada(
+			oleadaActual,
+			semillaPartida
+		);
+	}
+
+	// Para probar el bot sin entradas humanas.
+	void tickBot() {
+		tick(decidirAccionBot());
+	}
+
+	// También permite suministrar una acción manual/de prueba.
+	void tick(const Accion& accion) {
+		if (partidaTerminada) {
+			return;
+		}
+
+		ultimoTickProcesado = tickActual;
+
+		// El orden de estas etapas es el requerido por FAS-40.
+		leerAcciones(accion);               // 1
+		actualizarNave();                   // 2
+		generarEnemigos();                  // 3
+		disparoAutomatico();                // 4
+		moverEnemigos();                    // 5
+		resolverColisionesEnemigos();       // 6
+		moverBalasYResolverImpactos();      // 7
+		procesarPulso();                    // 8
+		actualizarEstadisticas();           // 9
+		verificarFin();                     // 10
+
+		++tickActual;
+	}
+
+	bool terminada() const {
+		return partidaTerminada;
 	}
 
 	void imprimirEstado() const {
-
-		int tickMostrado = tickActual > 0 ? tickActual - 1 : 0;
-
-		cout << "Tick: " << tickActual
+		cout << "Tick: " << ultimoTickProcesado
 			<< " | Oleada: " << oleadaActual
 			<< " | Enemigos: " << enemigos.tamano()
 			<< " | Balas: " << balas.tamano()
 			<< " | Vida: " << jugadorActual.obtenerVidaNucleo()
 			<< " | Puntaje: " << jugadorActual.obtenerPuntaje()
 			<< " | Combo: " << jugadorActual.obtenerComboActual()
+			<< " | Carga: " << jugadorActual.obtenerCargaPulse()
 			<< endl;
-	}
-
-	void tick(const Accion& accion) {
-
-		cout << "Leyendo Acciones..." << endl;
-		leerAcciones(accion);
-
-		cout << "Actualizando la nave..." << endl;
-		actualizarNave();
-
-		cout << "Generando enemigos..." << endl;
-		generarEnemigos();
-
-		cout << "Disparando..." << endl;
-		disparoAutomatico();
-
-		cout << "Moviendo enemigos..." << endl;
-		moverEnemigos();
-
-		cout << "Resolviendo Colisiones..." << endl;
-		resolverColisionesEnemigos();
-
-		cout << "Moviendo balas y resolviendo impactos..." << endl;
-		moverBalasResolverImpactos();
-
-		cout << "Procesando pulso..." << endl;
-		procesarPulso();
-
-		cout << "Actualizando stats..." << endl;
-		actualizarStats();
-
-		cout << "Verificando fin de la partida..." << endl;
-		verificarFin();
-
-		tickActual++;
 	}
 };
 
-int main()
-{	
-		Jugador jugador;
-		ListaBalas balas;
 
-		for (int tick = 0; tick <= 8; tick++) {
-			printf("creando bala...");
-			procesarTick(tick, jugador, balas);
+// ============================================================
+// SIMULACIÓN DE CONSOLA CON BOT1
+// ============================================================
+
+int main() {
+	Motor motor;
+	const int limiteTicks = 20000;
+
+	cout << "----- SIMULACION FASE ORBITAL: BOT1 -----"
+		<< endl;
+
+	for (int tick = 0;
+		tick < limiteTicks && !motor.terminada();
+		++tick) {
+		motor.tickBot();
+
+		// Reduce el volumen de salida: muestra estado cada 30 ticks.
+		if ((tick + 1) % 30 == 0) {
+			motor.imprimirEstado();
 		}
-
-		cout << balas.tamano() << endl;
-
-		// Inicializar Allegro
-		if (!al_init()) {
-			cerr << "No se pudo inicializar Allegro." << endl;
-			return -1;
-		}
-
-		// Crear ventana
-		ALLEGRO_DISPLAY* ventana = al_create_display(800, 600);
-		if (!ventana) {
-			cerr << "No se pudo crear la ventana." << endl;
-			return -1;
-		}
-
-		// Crear cola de eventos
-		ALLEGRO_EVENT_QUEUE* cola = al_create_event_queue();
-		if (!cola) {
-			cerr << "No se pudo crear la cola de eventos." << endl;
-			al_destroy_display(ventana);
-			return -1;
-		}
-
-		// Crear timer de 30 ticks por segundo
-		ALLEGRO_TIMER* timer = al_create_timer(1.0 / 30.0);
-		if (!timer) {
-			cerr << "No se pudo crear el timer." << endl;
-			al_destroy_event_queue(cola);
-			al_destroy_display(ventana);
-			return -1;
-		}
-
-		// Escuchar eventos de la ventana y del timer
-		al_register_event_source(
-			cola,
-			al_get_display_event_source(ventana)
-		);
-		al_register_event_source(
-			cola,
-			al_get_timer_event_source(timer)
-		);
-
-		al_start_timer(timer);
-
-		// Mantener la ventana abierta hasta que la cierren
-		bool ejecutando = true;
-
-		while (ejecutando) {
-			ALLEGRO_EVENT evento;
-			al_wait_for_event(cola, &evento);
-
-			if (evento.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
-				ejecutando = false;
-			}
-		}
-
-		// Liberar recursos
-		al_destroy_timer(timer);
-		al_destroy_event_queue(cola);
-		al_destroy_display(ventana);
-
-		return 0;
 	}
+
+	motor.imprimirEstado();
+
+	if (motor.terminada()) {
+		cout << "El bot terminó la partida." << endl;
+	}
+	else {
+		cout << "Simulacion detenida al llegar al limite de ticks."
+			<< endl;
+	}
+
+	return 0;
+}
