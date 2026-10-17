@@ -577,10 +577,16 @@ void resolverImpacto(Bala& bala, Enemigo& enemigo, Jugador& jugador) {
 }
 
 void activarPulso(Pulso& pulso, Jugador& jugador) {
-	if (jugador.obtenerCargaPulse() == 100.0f) {
+	if (pulso.activo) {
+		return;
+	}
+
+	if (jugador.obtenerCargaPulse() >= 100.0f) {
 		pulso.activo = true;
 		pulso.radio_actual = 20.0;
 		jugador.resetearPulso();
+
+		cout << "[PULSO] Activado. Carga: " << jugador.obtenerCargaPulse() << endl;
 	}
 }
 
@@ -592,6 +598,8 @@ void avanzarPulso(Pulso& pulso, ListaEnemigos& enemigos, Jugador& jugador) {
 
 	pulso.radio_actual += 12.0;
 
+	cout << "'[PULSO] Radio actual: " << pulso.radio_actual << endl;
+
 	NodoEnemigo* actual = enemigos.primero();
 
 	while (actual != nullptr) {
@@ -600,6 +608,8 @@ void avanzarPulso(Pulso& pulso, ListaEnemigos& enemigos, Jugador& jugador) {
 		double diferencia = fabs(actual->dato.r - pulso.radio_actual);
 
 		if (diferencia < actual->dato.radio + 3.0) {
+
+			cout << "[PULSO] Enemigo destruido " << endl;
 			int puntosBase = puntosPorTipo(actual->dato.tipo);
 			jugador.aumentarPuntaje(puntosBase);
 			enemigos.eliminar(actual);
@@ -609,6 +619,9 @@ void avanzarPulso(Pulso& pulso, ListaEnemigos& enemigos, Jugador& jugador) {
 	}
 	if (pulso.radio_actual > 320.0) {
 		pulso.activo = false;
+		pulso.radio_actual = 0.0;
+
+		cout << "[PULSO] Onda finalizada" << endl;
 	}
 }
 
