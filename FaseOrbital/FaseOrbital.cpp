@@ -732,6 +732,25 @@ public:
 	bool vacia() const { return tam == 0; }
 };
 
+// Este bool indica si la ronda es impar, si esto se cumple realiza un recorrido de tipo "horario". Por otro lado,
+// si las rondas son pares realiza un recorrido "antihorario".
+bool rondaimpar( int rondaactual) {
+	return rondaactual % 2 == 1;
+}
+
+// La siguiente función va a ejecutar una ronda con un jugador a la vez. Como antes mencionado,
+// la ronda es recorrida en sentido horario si es impar y sentido antihorario si es par.
+// Por último, el jugador inicia la ronda en donde quedo actual.
+template<class Operacion>
+void ejecutarronda(RondaJugadores& jugadores, int rondaactual, Operacion Jugarturno) {
+	bool direccionhorario = rondaimpar(rondaactual);
+	int totalturnos = jugadores.tamano();
+	for (int posicion = 0; posicion < totalturnos; posicion ++) {
+		Jugarturno(jugadores.verActual());
+		if (posicion < totalturnos - 1) {
+			jugadores.avanzar(direccionhorario);
+		}
+
 // Este bool es para cumplir la condición de eliminarSi el cual recibe una bala y si devuelve true es porque el duenio es par y se debe borrar la bala. 
 bool condicionpar(const Bala& b) {
 	return b.duenio % 2 == 0;
