@@ -297,7 +297,7 @@ struct NodoAparicion {
 };
 
 // La siguiente clase define la cola enlazada de apariciones de la oleada (ronda del juego). Esto lo hace guardando un puntero al frente que es el primer nodo en salir y un puntero al final que es
-// el último nodo en entrar y tam (tamaño) establece cuantos nodos existen. Como las apariciones entran por el final y salen por el frente, se respeta el orden de llegada y eso indica que encolar y descolar son 0(1).
+// el último nodo en entrar y tam (tamaño) establece cuantos nodos existen. Como las apariciones entran por el final y salen por el frente, se respeta el orden de llegada y eso indica que encolar y descolar son O(1).
 // Por otro lado, la copia recorre todos los nodos y esto indica que es O(n).
 class ColaSpawn {
 	NodoAparicion* frente;
@@ -731,6 +731,110 @@ public:
 	int tamano() const { return tam; }
 	bool vacia() const { return tam == 0; }
 };
+
+// Este bool indica si la ronda es impar, si esto se cumple realiza un recorrido de tipo "horario". Por otro lado,
+// si las rondas son pares realiza un recorrido "antihorario".
+bool rondaimpar( int rondaactual) {
+	return rondaactual % 2 == 1;
+}
+
+// La siguiente función va a ejecutar una ronda con un jugador a la vez. Como antes mencionado,
+// la ronda es recorrida en sentido horario si es impar y sentido antihorario si es par.
+// Por último, el jugador inicia la ronda en donde quedo actual.
+template<class Operacion>
+void ejecutarronda(RondaJugadores& jugadores, int rondaactual, Operacion Jugarturno) {
+	bool direccionhorario = rondaimpar(rondaactual);
+	int totalturnos = jugadores.tamano();
+	for (int posicion = 0; posicion < totalturnos; posicion ++) {
+		Jugarturno(jugadores.verActual());
+		if (posicion < totalturnos - 1) {
+			jugadores.avanzar(direccionhorario);
+		}
+	}
+}
+
+
+// El siguiete class es para realizar la bitácora del juego, donde se van a establecer los tipos de evento que se guardan.
+enum class TipoEvento { Baja, Impacto_erroneo, Dano_nucleo, Choque_nave, Pulso, Fin_Oleada, Eliminacion };
+// Este struct es para establecer los datos de cada evento.
+struct Registro {
+	int tick;
+	int oleada;
+	int jugador;
+	TipoEvento tipo_evento;
+	int tipo_enemigo;
+	int color;
+	int valor;
+};
+// En este struct se establece el nodo de la bitácora, en el cual guarda un dato (registro) y el puntero continua con el siguiente.
+struct RegistroNodo {
+	Registro dato;
+	RegistroNodo* sig;
+};
+// Se realiza una lista simple la cual guarde el final, recorrer y filtrar son O(n) y agregar eventos O(1).
+class BitacoraEventos {
+	RegistroNodo* inicio;
+	RegistroNodo* fin;
+	int posicion;
+public:
+	BitacoraEventos() {
+		inicio = nullptr;
+		fin = nullptr;
+		posicion = 0;
+	}
+	BitacoraEventos() {
+		RegistroNodo* Aux = inicio;
+		while (Aux != nullptr){
+			RegistroNodo* eliminar = Aux;
+			Aux = Aux->sig;
+			delete borrar;
+		}
+	}
+	BitacoraEventos(const BitacoraEventos&) = delete;
+	BitacoraEventos& operator=(const BitacoraEventos&) = delete;
+// El siguiente void tiene como finalidad agregar un dato al final por medio del puntero fin
+	void agregarfinal(const Registro& r) {
+		RegistroNodo* nuevo = new(RegistroNodo);
+		nuevo->dato = r;
+		nuevo->sig = nullptr;
+		if (fin == nullptr) {
+			inicio = nuevo
+		}
+		else {
+			fin->sig = nuevo;
+		}
+		fin = nuevo;
+		total++;
+	}
+// Esta operación va a recorrer todos los eventos y desde el más viejo hasta el más nuevo.
+	template<class Operacion>
+	void recorrido(Operacion aplicar) const {
+		RegistroNodo* Aux = inicio;
+		while (Aux != nullptr) {
+			aplicar(Aux->dato);
+			Aux = Aux->sig;
+		}
+	}
+// En esta operación realiza el mismo recorrido pero solo a los eventos seleccioandos( jugador, oleada etc).
+	template<class Operacion>
+	int seleccionados(int idjugador, int numoleada, Operacion aplicar) const{
+		int obtenidos = 0;
+		RegistroNodo* Aux = inicio;
+		while (Aux != nullptr) {
+			if (Aux->dato.jugador == idjugador && Aux->dato.oleada == numoleada)
+				aplicar(Aux->dato);
+			obtenidos++;
+		}
+		Aux = Aux->sig;
+	}
+	return obtenidos;
+}
+int tamano() const { return total;
+}
+bool vacio() const { return total == 0;
+}
+};
+
 
 // Este bool es para cumplir la condición de eliminarSi el cual recibe una bala y si devuelve true es porque el duenio es par y se debe borrar la bala. 
 bool condicionpar(const Bala& b) {
