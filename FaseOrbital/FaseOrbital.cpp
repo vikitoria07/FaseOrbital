@@ -543,6 +543,7 @@ int puntosPorTipo(TipoEnemigo tipo) {
 	case TipoEnemigo::Camaleon:
 		return 300;
 	}
+	return 0:
 }
 
 void resolverImpacto(Bala& bala, Enemigo& enemigo, Jugador& jugador) {
@@ -787,7 +788,7 @@ public:
 		while (Aux != nullptr){
 			RegistroNodo* eliminar = Aux;
 			Aux = Aux->sig;
-			delete borrar;
+			delete eliminar;
 		}
 	}
 	BitacoraEventos(const BitacoraEventos&) = delete;
@@ -798,7 +799,7 @@ public:
 		nuevo->dato = r;
 		nuevo->sig = nullptr;
 		if (fin == nullptr) {
-			inicio = nuevo
+			inicio = nuevo;
 		}
 		else {
 			fin->sig = nuevo;
@@ -1041,6 +1042,8 @@ private:
 	int siguienteEnemigo;
 	int semillaPartida;
 	bool partidaTerminada;
+	int cantidadDisparos;
+	int disparosAcertados;
 
 	Jugador jugadorActual;
 	ColaSpawn colaSpawn;
@@ -1048,6 +1051,7 @@ private:
 	ListaBalas balas;
 	Pulso pulso;
 	Accion accionPendiente;
+	RondaJugadores ronda;
 
 	// FAS-50: elige el enemigo elegible con menor radio,
 	// prepara el giro y el cambio de color, y decide si activa el pulso.
@@ -1149,6 +1153,7 @@ private:
 			);
 
 			balas.insertarInicio(bala);
+			++cantidadDisparos;
 		}
 	}
 
@@ -1204,6 +1209,9 @@ private:
 					balaActual->dato,
 					enemigoActual->dato
 				)) {
+					if (balaActual->dato.color == enemigoActual->dato.color){
+						++disparosAcertados;
+					}
 					resolverImpacto(
 						balaActual->dato,
 						enemigoActual->dato,
@@ -1252,12 +1260,37 @@ private:
 		// Conectar aquí los contadores y la bitácora cuando estén implementados.
 	}
 
-	// 10. Verificar fin de partida y avance de oleada.
+	//10.Se ejecuta cuando vida núcleo <= 0, por lo que saca al jugador de la lista circular.
+	void eliminarJugador () {
+		Jugador* jugadorRemovido = ronda.verActual ();
+		if (jugadorRemovido == nullptr ) {
+			partidaTerminada = true;
+			return;
+		}
+		double acierto = 0.0;
+		if (cantidadDisparos > 0) {
+			acierto = 100.0 * disparosAcertados / cantidadDisparos;
+		}
+		cout << " Partida Terminada" << endl;
+		cout << "Puntos obtenidos: " << jugadorRemovido->obtenerPuntaje() << endl;
+		cout << "Disparos: " << cantidadDisparos << endl;
+		cout << "Disparos acertados: " << disparosAcertados << endl;
+			cout << "Porcentaje de aciertos de disparos: " << acierto << "%" << endl;
+		ronda.eliminarActual(true);
+		if (ronda.vacia()) {
+			partidaTerminada = true;
+		}
+		else if (ronda.tamano() == 1){
+			cout << "Felicidades, ganador por ser último juagdor con vida" << endl;
+			partidaTerminada = true;
+		}
+	}
+			
+
+	// 11. Verificar fin de partida y avance de oleada.
 	void verificarFin() {
 		if (jugadorActual.obtenerVidaNucleo() <= 0) {
-			partidaTerminada = true;
-			cout << "[FIN] Partida terminada: núcleo destruido."
-				<< endl;
+			eliminarJugador();
 			return;
 		}
 
@@ -1286,7 +1319,10 @@ public:
 		siguienteEnemigo(1),
 		semillaPartida(42),
 		partidaTerminada(false),
+		cantidadDisparos(0),
+		disparosAcertados(0),
 		pulso{ false, 0.0 } {
+		ronda.agregar(&jugadorActual);
 		colaSpawn = generarOleada(
 			oleadaActual,
 			semillaPartida
@@ -1338,12 +1374,78 @@ public:
 	}
 };
 
+// El siguiente bool se utiliza para comprobar que la lista siga su recorrido hacia adelante y hacia atrás.
+bool verificarRecorrido (RondaJugadores& r, Jugador* requeridos [], int j) {
+	if (r.tamano != j) return false;
+	for (int i = 0; i < j; i++) {
+		if (r.verActual() != requeridos[i]) return false;
+		r.avanzar(true);
+	}
+	if (r.verActual() != requeridos[0]) return false;
+	for (int i = 0; i < j; i)
+		for (int i = 0; i < j; i++) {
+			if (r.verActual() != requeridos[(j - i) % j]) return false;
+			r.avanzar(false);
+		}
+	return r.verActual() == requeridos[0];
+}
+void reportarPrueba(const char* nombre, bool resultado) {
+	if (resultado == true) {
+		cout << "´Ronda de prueba" << nombre << ": Correcta" << endl;
+	}
+	else {
+		cout << "Ronda de prueba" << nombre << ": Incorrecta" << endl;
+	}
+
+}
+void pruebasRondaJugadores() {
+	Jugador j[4];
+
+	{   // Esta primera parte tiene como función eliminar el primer jugador, al ser una prueba de 4 jugadores solo van a ser eliminados 3 y dejarse 1.
+		RondaJugadores r;
+		for (int i = 0; i < 4; i++) r.agregar(&j[i]);
+		Jugador* eliminado = r.eliminarActual(true);
+		Jugador* requeridos[] = { &j[1], &j[2], &j[3] };
+		reportarPrueba("Eliminación primer jugador", eliminado == &j[0] && verificarCircular(r, requeridos, 3));
+	}
+	{   // En este se elimina el segundo jugador
+		RondaJugadores r;
+		for (int i = 0; i < 4; i++) r.agregar(&j[i]);
+		r.avanzar(true); r.avanzar(true);    
+		Jugador* eliminado = r.eliminarActual(true);
+		Jugador* requeridos[] = { &j[3], &j[0], &j[1] };
+		reportarPrueba("Eliminación segundo jugador", eliminado == &j[2] && verificarCircular(r, requeridos, 3));
+	}
+	{   // Esta parte elimina al tercer jugador el cual es el último removido de la lista
+		RondaJugadores r;
+		for (int i = 0; i < 4; i++) r.agregar(&j[i]);
+		r.avanzar(false);                    
+		Jugador* eliminado = r.eliminarActual(true);
+		Jugador* requeridos[] = { &j[0], &j[1], &j[2] };
+		reportarPrueba("Eliminación tercer juagdor", eliminado == &j[3] && verificarCircular(r, requeridos, 3));
+	}
+	{   // En esta parte se establece el último jugador de la lista como ganador
+		RondaJugadores r;
+		r.agregar(&j[0]);
+		r.agregar(&j[1]);
+		r.eliminarActual(true);              
+		Jugador* ultimo[] = { &j[1] };
+		bool ganador = r.tamano() == 1 && verificarCircular(r, ultimo, 1);
+
+		Jugador* eliminado = r.eliminarActual(true);
+		bool vacia = r.vacia() && r.verActual() == nullptr && r.eliminarActual(true) == nullptr;
+
+		reportarPrueba("Ganador! Último jugador en pie", ganador);
+		reportarPrueba("Liberación de lista(vacía)", eliminado == &j[1] && vacia);
+	}
+}
 
 // ============================================================
 // SIMULACIÓN DE CONSOLA CON BOT1
 // ============================================================
 
 int main() {
+	pruebasRondaJugadores();
 	Motor motor;
 	const int limiteTicks = 20000;
 
