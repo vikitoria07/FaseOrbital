@@ -7,6 +7,9 @@
 #include "Helpers.h"
 #include <allegro5/allegro.h>
 #include <fstream>
+#include <iomanip>
+#include <cstdio>
+
 using namespace std;
 
 // En esta parte se establecen los seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
@@ -230,7 +233,7 @@ public:
 	// Esta función es para borrar todas las balas para las que la condición debeEliminarse se cumpla e indique cuantas se borraron.
 	// Por medio de un puntero recorre la lista y apunta al puntero que enlaza el nodo actual.
 	template<class Pred>
-	int eliminarSi(Pred debeEliminarse) {
+	int eliminarBalas(Pred debeEliminarse) {
 		int borradas = 0;
 		NodoBala** p = &cabeza;
 		while (*p != nullptr) {
@@ -544,7 +547,7 @@ int puntosPorTipo(TipoEnemigo tipo) {
 	case TipoEnemigo::Camaleon:
 		return 300;
 	}
-	return 0:
+	return 0;
 }
 
 void resolverImpacto(Bala& bala, Enemigo& enemigo, Jugador& jugador) {
@@ -784,7 +787,7 @@ public:
 		fin = nullptr;
 		posicion = 0;
 	}
-	BitacoraEventos() {
+	~BitacoraEventos() {
 		RegistroNodo* Aux = inicio;
 		while (Aux != nullptr){
 			RegistroNodo* eliminar = Aux;
@@ -852,7 +855,7 @@ NodoPuntaje* listaDividida(NodoPuntaje* cabeza) {
 		segundo = segundo->sig->sig;
 	}
 	NodoPuntaje* segunda = primero->sig;
-	lento->sig = nullptr;
+	primero->sig = nullptr;
 	return segunda;
 }
 // Esta parte va a mezclar dos listas convirtiendolas en una sola.
@@ -966,15 +969,15 @@ public:
 		}
 		return suma / tam;
 	}
-}
+
 // La mediana va a copiar los valores a una lista auxiliar, la va a ordenar con el merge sort y conocer los valores promedios si estan ubicados en el centro.
 double mediana() const {
 	if (tam == 0) {
 		return 0.0;
 	}
 	ListaPuntajes auxiliar;
-	auxiliar.copiarDe(*this);
-	auxiliar.ordenar();
+	auxiliar.copiaPuntajes(*this);
+	auxiliar.ordenLista();
 	NodoPuntaje* Aux = auxiliar.cabeza;
 	int mitad = tam / 2;
 	for (int i = 0; i < mitad - 1 + (tam % 2); i++) {
@@ -1114,7 +1117,7 @@ int valorEntero(string entero) {
 }
 bool lineaenRegistro(string linea, RegistroPartida& r) {
 	string numlin[15];
-	int cantidad = separarLineas(linea, numlin, 15);
+	int cantidad = separacionCampos(linea, numlin, 15);
 	if (cantidad != 15) {
 		return false;
 	}
@@ -1144,17 +1147,17 @@ bool lineaenRegistro(string linea, RegistroPartida& r) {
 	return true;
 }
 // La siguiente class es para establecer el historial de partidas utilizando una lista simple
-class HistorialPartidas {
+class historialPartidas {
 	NodoRegistroPartida* cabeza;
 	NodoRegistroPartida* cola;
 	int tam;
 public:
-	HistorialPartidas() {
+	historialPartidas() {
 		cabeza = nullptr;
 		cola = nullptr;
 		tam = 0;
 	}
-	~HistorialPartidas() {
+	~historialPartidas() {
 		NodoRegistroPartida* Aux = cabeza;
 		while (Aux != nullptr) {
 			NodoRegistroPartida* borrar = Aux;
@@ -1162,8 +1165,8 @@ public:
 			delete borrar;
 		}
 	}
-	HistorialPartidas(const HistorialPartidas&) = delete;
-	HistorialPartidas& operator=(const HistorialPartidas&) = delete;
+	historialPartidas(const historialPartidas&) = delete;
+	historialPartidas& operator=(const historialPartidas&) = delete;
 	// Al igual que el pasado, esta función agrega un registro al final del historial
 	void registroFinal(const RegistroPartida& f) {
 		NodoRegistroPartida* nuevo = new(NodoRegistroPartida);
@@ -1193,8 +1196,8 @@ public:
 				continue;
 			}
 			RegistroPartida f;
-			if (convertirLinea(linea, f) == true) {
-				agregarFinal(f);
+			if (lineaenRegistro(linea, f) == true) {
+				registroFinal(f);
 				cargados++;
 			}
 			else {
@@ -1230,6 +1233,8 @@ public:
 				cargar.insertarFinal(Aux->dato.puntaje);
 			}
 			Aux = Aux->sig;
+		}
+	}
 			void imprimirEstadisticas(string jugador) const {
 				ListaPuntajes lista;
 				copiaPuntajes(jugador, lista);
@@ -1262,8 +1267,113 @@ public:
 			bool vacio() const { return tam == 0; }
 		};
 
+// El siguiente struct es para establecer donde se van a guardar  los datos sobre el ranking de cada jugador
+		struct EntradaRanking {
+			string nombre;
+			int puntaje;
+			double precision;
+		};
+		struct NodoRanking {
+			EntradaRanking dato;
+			NodoRanking* sig;
+		};
+//En este bool se comparan dos puntajes, compara de primero el puntaje mayor y si estan iguales sigue con la precisión y si quedan iguales se compara con el nombre en orden alfabético.
+		bool comparacionPuntajes(const EntradaRanking& M, const EntradaRanking& m) {
+			if (M.puntaje != m.puntaje) {
+				return M.puntaje > m.puntaje;
+			}
+			if (fabs(M.precision - m.precision) > 0.000001) {
+				return M.precision > m.precision;
+			}
+			return M.nombre < m.nombre;
+		}
+// La siguiente clase es de ranking la cual esta construida con una lista simple, utilizando los nodos creados anteriormente.
+//Además, usa posiciónNueva para recorrer la lista hasta encontrar la posición solicitada.
+		class Ranking {
+			NodoRanking* cabeza;
+			int tam;
+		public:
+			Ranking() {
+				cabeza = nullptr;
+				tam = 0;
+			}
+			~Ranking() {
+				NodoRanking* Aux = cabeza;
+				while (Aux != nullptr) {
+					NodoRanking* borrar = Aux;
+					Aux = Aux->sig;
+					delete borrar;
+				}
+			}
+			Ranking(const Ranking&) = delete;
+			Ranking& operator=(const Ranking&) = delete;
+// Esta es la función antes mencionada, la cual por medio de punteros ubica la entrada nueva en la posición que se establecio en posicionNueva
+			void posicionNueva(const EntradaRanking& e) {
+				NodoRanking* nuevo = new(NodoRanking);
+				nuevo->dato = e;
+				nuevo->sig = nullptr;
+				NodoRanking** p = &cabeza;
+				while (*p != nullptr && comparacionPuntajes(e, (*p)->dato) == false) {
+					p = &((*p)->sig);
+				}
+				nuevo->sig = *p;
+				*p = nuevo;
+				tam++;
+			}
+// La siguiente función es para copiar las primeras entradas por medio de una variable (n) y devuelve cuántas copio.
+			int copiaDatos(int n, EntradaRanking devuelve[]) const {
+				int copias = 0;
+				NodoRanking* Aux = cabeza;
+				while (Aux != nullptr && copias < n) {
+					devuelve[copias] = Aux->dato;
+					copias++;
+					Aux = Aux->sig;
+				}
+				return copias;
+			}
+// Este void imprime la tabla con los primeros jugadores, indicando posición, puntaje, precisión y nombre
+			void tablaRanking(int n) const {
+				cout << "----- Podio " << n << " Mejores Jugadores -----" << endl;
+				if (tam == 0) {
+					cout << "No hay jugadores" << endl;
+					return;
+				}
+				int posicion = 1;
+				NodoRanking* Aux = cabeza;
+				while (Aux != nullptr && posicion <= n) {
+					cout << "Posicion: " << setw(2) << posicion
+						<< " | Jugador: " << left << setw(10) << Aux->dato.nombre << right
+						<< " | Puntos: " << setw(6) << Aux->dato.puntaje
+						<< " | Precision: " << fixed << setprecision(1) << Aux->dato.precision << "%" << endl;
+					posicion++;
+					Aux = Aux->sig;
+				}
+				cout.unsetf(ios::fixed);
+			}
+			NodoRanking* primero() const { return cabeza; }
+			int tamano() const { return tam; }
+			bool vacio() const { return tam == 0; }
+		};
 
-// Este bool es para cumplir la condición de eliminarSi el cual recibe una bala y si devuelve true es porque el duenio es par y se debe borrar la bala. 
+// La siguiente función es para recorrer el historial de partidas y por cada registro se inserta una nueva entrada de datos.
+// Precisión se calcula aciertos/disparos * 100 y si no hubieron disparos se establece en 0 para no tener que hacer la división.
+		void historialRanking(const HistorialPartidas& historial, Ranking& ranking) {
+			NodoRegistroPartida* Aux = historial.primero();
+			while (Aux != nullptr) {
+				EntradaRanking e;
+				e.nombre = Aux->dato.jugador;
+				e.puntaje = Aux->dato.puntaje;
+				e.precision = 0.0;
+				if (Aux->dato.disparos > 0) {
+					e.precision = 100.0 * Aux->dato.correctos / Aux->dato.disparos;
+				}
+				ranking.posicionNueva(e);
+				Aux = Aux->sig;
+			}
+		}
+
+
+// Este bool es para cumplir la condición de eliminarBalas el cual recibe una bala y si devuelve true es porque el duenio es par y se debe borrar la bala. 
 bool condicionpar(const Bala& b) {
 	return b.duenio % 2 == 0;
 }
@@ -1667,7 +1777,7 @@ private:
 			}
 		}
 
-		balas.eliminarSi([](const Bala& bala) {
+		balas.eliminarBalas([](const Bala& bala) {
 			return bala.marcada;
 			});
 	}
@@ -1802,13 +1912,12 @@ public:
 
 // El siguiente bool se utiliza para comprobar que la lista siga su recorrido hacia adelante y hacia atrás.
 bool verificarRecorrido (RondaJugadores& r, Jugador* requeridos [], int j) {
-	if (r.tamano != j) return false;
+	if (r.tamano() != j) return false;
 	for (int i = 0; i < j; i++) {
 		if (r.verActual() != requeridos[i]) return false;
 		r.avanzar(true);
 	}
 	if (r.verActual() != requeridos[0]) return false;
-	for (int i = 0; i < j; i)
 		for (int i = 0; i < j; i++) {
 			if (r.verActual() != requeridos[(j - i) % j]) return false;
 			r.avanzar(false);
@@ -1832,7 +1941,7 @@ void pruebasRondaJugadores() {
 		for (int i = 0; i < 4; i++) r.agregar(&j[i]);
 		Jugador* eliminado = r.eliminarActual(true);
 		Jugador* requeridos[] = { &j[1], &j[2], &j[3] };
-		reportarPrueba("Eliminación primer jugador", eliminado == &j[0] && verificarCircular(r, requeridos, 3));
+		reportarPrueba("Eliminación primer jugador", eliminado == &j[0] && verificarRecorrido(r, requeridos, 3));
 	}
 	{   // En este se elimina el segundo jugador
 		RondaJugadores r;
@@ -1840,7 +1949,7 @@ void pruebasRondaJugadores() {
 		r.avanzar(true); r.avanzar(true);    
 		Jugador* eliminado = r.eliminarActual(true);
 		Jugador* requeridos[] = { &j[3], &j[0], &j[1] };
-		reportarPrueba("Eliminación segundo jugador", eliminado == &j[2] && verificarCircular(r, requeridos, 3));
+		reportarPrueba("Eliminación segundo jugador", eliminado == &j[2] && verificarRecorrido(r, requeridos, 3));
 	}
 	{   // Esta parte elimina al tercer jugador el cual es el último removido de la lista
 		RondaJugadores r;
@@ -1848,7 +1957,7 @@ void pruebasRondaJugadores() {
 		r.avanzar(false);                    
 		Jugador* eliminado = r.eliminarActual(true);
 		Jugador* requeridos[] = { &j[0], &j[1], &j[2] };
-		reportarPrueba("Eliminación tercer juagdor", eliminado == &j[3] && verificarCircular(r, requeridos, 3));
+		reportarPrueba("Eliminación tercer juagdor", eliminado == &j[3] && verificarRecorrido(r, requeridos, 3));
 	}
 	{   // En esta parte se establece el último jugador de la lista como ganador
 		RondaJugadores r;
@@ -1856,7 +1965,7 @@ void pruebasRondaJugadores() {
 		r.agregar(&j[1]);
 		r.eliminarActual(true);              
 		Jugador* ultimo[] = { &j[1] };
-		bool ganador = r.tamano() == 1 && verificarCircular(r, ultimo, 1);
+		bool ganador = r.tamano() == 1 && verificarRecorrido(r, ultimo, 1);
 
 		Jugador* eliminado = r.eliminarActual(true);
 		bool vacia = r.vacia() && r.verActual() == nullptr && r.eliminarActual(true) == nullptr;
@@ -1865,12 +1974,61 @@ void pruebasRondaJugadores() {
 		reportarPrueba("Liberación de lista(vacía)", eliminado == &j[1] && vacia);
 	}
 }
+//La siguiente función es para mostrar la prueba de que Ranking si funciona en el programa, se piensa comprobar los tres criterios los cuales son que gana el mayor puntaje
+// si hay un empate en puntaje gana la mejor precisión y si también empatan en precisión se ordenan los nombres en orden alfabético. Además, muestra solo 10 jugadores si es que se encuentran más.
+void pruebasRanking() {
+	Ranking r;
+	r.posicionNueva({ "Adriel", 800, 95.0 });
+	r.posicionNueva({ "María", 700, 90.0 });
+	r.posicionNueva({ "Sebastián", 300, 50.0 });
+	r.posicionNueva({ "Victor", 500, 70.0 });
+	r.posicionNueva({ "Julian", 500, 70.0 });
+
+	string esperado[] = { "Adriel", "María", "Julian", "Victor", "Sebastián" };
+	EntradaRanking salida[10];
+	int cantidad = r.copiaDatos(10, salida);
+	bool correcto = (cantidad == 5);
+	for (int i = 0; i < cantidad && correcto; i++) {
+		if (salida[i].nombre != esperado[i]) {
+			correcto = false;
+		}
+	}
+	reportarPrueba("Ranking de la partida", correcto);
+
+	Ranking grande;
+	for (int i = 0; i < 15; i++) {
+		grande.posicionNueva({ "J" + to_string(i), i * 10, 50.0 });
+	}
+	reportarPrueba("Ranking top 10", grande.copiaDatos(10, salida) == 10 && salida[0].puntaje == 140);
+}
 
 // ============================================================
 // SIMULACIÓN DE CONSOLA CON BOT1
 // ============================================================
 
-int main() {
+int main(int argc, char* argv[]) {
+	if (argc >= 2) {
+		string comando = argv[1];
+		if (comando == "--ranking") {
+			if (argc < 3) {
+				cout << "Uso: ./faseorbital --ranking historial.csv" << endl;
+				return 1;
+			}
+			string archivo = argv[2];
+			HistorialPartidas historial;
+			if (historial.cargaHistorial(archivo) < 0) {
+				cout << "No se pudo abrir el historial " << archivo << endl;
+				return 1;
+			}
+			Ranking ranking;
+			historialRanking(historial, ranking);
+			ranking.tablaRanking(10);
+			return 0;
+		}
+		cout << "Comando desconocido: " << comando << endl;
+		return 1;
+	}
+	pruebasRanking();
 	pruebasRondaJugadores();
 	Motor motor;
 	const int limiteTicks = 20000;
