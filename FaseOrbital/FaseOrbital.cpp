@@ -9,6 +9,8 @@
 #include <fstream>
 #include <iomanip>
 #include <cstdio>
+#include <sstream>
+#include <cstdint>
 
 using namespace std;
 
@@ -347,6 +349,17 @@ public:
 			}
 		}
 		return *this;
+
+
+	}
+	template<class Operacion>
+	void recorrer(Operacion aplicar) const {
+		const NodoAparicion* actual = frente;
+
+		while (actual != nullptr) {
+			aplicar(actual->dato);
+			actual = actual->sig;
+		}
 	}
 
 	// Esta parte se ejecuta cuando la cola deja de existir y libera todos los nodos para no dejar memoria basura.
@@ -474,6 +487,32 @@ Enemigo crearMini(const Enemigo& divisor, int id, double desplazamientoAngular, 
 
 	return mini;
 
+}
+
+void reemplazarPorMinis(
+	ListaEnemigos& enemigos,
+	NodoEnemigo* nodo,
+	int& siguienteId
+) {
+	if (nodo == nullptr) {
+		return;
+	}
+
+	const Enemigo divisor = nodo->dato;
+
+	if (divisor.tipo == TipoEnemigo::Divisor) {
+		NodoEnemigo* miniHorario = enemigos.insertarDespues(
+			nodo,
+			crearMini(divisor, siguienteId++, -4.0, -1.7)
+		);
+
+		enemigos.insertarDespues(
+			miniHorario,
+			crearMini(divisor, siguienteId++, 4.0, 1.7)
+		);
+	}
+
+	enemigos.eliminar(nodo);
 }
 
 void moverTodosLosEnemigos(ListaEnemigos& enemigos,int oleada) {
@@ -781,15 +820,14 @@ class BitacoraEventos {
 	RegistroNodo* inicio;
 	RegistroNodo* fin;
 	int posicion;
+	int total;
 public:
-	BitacoraEventos() {
-		inicio = nullptr;
-		fin = nullptr;
-		posicion = 0;
+	BitacoraEventos()
+		: inicio(nullptr), fin(nullptr), posicion(0), total(0) {
 	}
 	~BitacoraEventos() {
 		RegistroNodo* Aux = inicio;
-		while (Aux != nullptr){
+		while (Aux != nullptr) {
 			RegistroNodo* eliminar = Aux;
 			Aux = Aux->sig;
 			delete eliminar;
@@ -797,7 +835,7 @@ public:
 	}
 	BitacoraEventos(const BitacoraEventos&) = delete;
 	BitacoraEventos& operator=(const BitacoraEventos&) = delete;
-// El siguiente void tiene como finalidad agregar un dato al final por medio del puntero fin
+	// El siguiente void tiene como finalidad agregar un dato al final por medio del puntero fin
 	void agregarfinal(const Registro& f) {
 		RegistroNodo* nuevo = new(RegistroNodo);
 		nuevo->dato = f;
@@ -811,7 +849,7 @@ public:
 		fin = nuevo;
 		total++;
 	}
-// Esta operación va a recorrer todos los eventos y desde el más viejo hasta el más nuevo.
+	// Esta operación va a recorrer todos los eventos y desde el más viejo hasta el más nuevo.
 	template<class Operacion>
 	void recorrido(Operacion aplicar) const {
 		RegistroNodo* Aux = inicio;
@@ -820,20 +858,21 @@ public:
 			Aux = Aux->sig;
 		}
 	}
-// En esta operación realiza el mismo recorrido pero solo a los eventos seleccioandos( jugador, oleada etc).
+	// En esta operación realiza el mismo recorrido pero solo a los eventos seleccioandos( jugador, oleada etc).
 	template<class Operacion>
-	int seleccionados(int idjugador, int numoleada, Operacion aplicar) const{
+	int seleccionados(int idjugador, int numoleada, Operacion aplicar) const {
 		int obtenidos = 0;
 		RegistroNodo* Aux = inicio;
 		while (Aux != nullptr) {
-			if (Aux->dato.jugador == idjugador && Aux->dato.oleada == numoleada)
+			if (Aux->dato.jugador == idjugador && Aux->dato.oleada == numoleada) {
 				aplicar(Aux->dato);
-			obtenidos++;
+				obtenidos++;
+			}
+			Aux = Aux->sig;
 		}
-		Aux = Aux->sig;
+		return obtenidos;
 	}
-	return obtenidos;
-}
+
 int tamano() const { return total;
 }
 bool vacio() const { return total == 0;
@@ -930,7 +969,7 @@ public:
 		tam++;
 	}
 	// Esta parte es la lista auxiliar utilizada para la mediana, la cual copia todos los puntajes de otra lista
-	void copiaPuntajes(const listaPuntajes& nueva) {
+	void copiaPuntajes(const ListaPuntajes& nueva) {
 		NodoPuntaje* Aux = nueva.cabeza;
 		while (Aux != nullptr) {
 			insertarFinal(Aux->dato);
@@ -1071,6 +1110,12 @@ struct RegistroPartida {
 	int pulsos;
 	int dano_total;
 	int ticks;
+	int bajas_dron;
+	int bajas_girador;
+	int bajas_divisor;
+	int bajas_mini;
+	int bajas_tanque;
+	int bajas_camaleon;
 };
 struct NodoRegistroPartida {
 	RegistroPartida dato;
@@ -1116,37 +1161,46 @@ int valorEntero(string entero) {
 	return valor;
 }
 bool lineaenRegistro(string linea, RegistroPartida& r) {
-	string numlin[15];
-	int cantidad = separacionCampos(linea, numlin, 15);
-	if (cantidad != 15) {
+	string campos[21];
+
+	if (separacionCampos(linea, campos, 21) != 21) {
 		return false;
 	}
-	if (numlin[3].size() == 0) {
+
+	if (campos[3].empty()) {
 		return false;
 	}
-	for (int i = 0; i < 15; i++) {
-		if (i != 2 && i != 3 && valorenteroValido(numlin[i]) == false) {
+
+	for (int i = 0; i < 21; ++i) {
+		if (i != 2 && i != 3 && !valorenteroValido(campos[i])) {
 			return false;
 		}
 	}
-	r.id_partida = valorEntero(numlin[0]);
-	r.semilla = valorEntero(numlin[1]);
-	r.modo = numlin[2];
-	r.jugador = numlin[3];
-	r.es_bot = valorEntero(numlin[4]);
-	r.posicion = valorEntero(numlin[5]);
-	r.puntaje = valorEntero(numlin[6]);
-	r.oleada = valorEntero(numlin[7]);
-	r.disparos = valorEntero(numlin[8]);
-	r.correctos = valorEntero(numlin[9]);
-	r.erroneos = valorEntero(numlin[10]);
-	r.combo_max = valorEntero(numlin[11]);
-	r.pulsos = valorEntero(numlin[12]);
-	r.dano_total = valorEntero(numlin[13]);
-	r.ticks = valorEntero(numlin[14]);
+
+	r.id_partida = valorEntero(campos[0]);
+	r.semilla = valorEntero(campos[1]);
+	r.modo = campos[2];
+	r.jugador = campos[3];
+	r.es_bot = valorEntero(campos[4]);
+	r.posicion = valorEntero(campos[5]);
+	r.puntaje = valorEntero(campos[6]);
+	r.oleada = valorEntero(campos[7]);
+	r.disparos = valorEntero(campos[8]);
+	r.correctos = valorEntero(campos[9]);
+	r.erroneos = valorEntero(campos[10]);
+	r.combo_max = valorEntero(campos[11]);
+	r.pulsos = valorEntero(campos[12]);
+	r.dano_total = valorEntero(campos[13]);
+	r.ticks = valorEntero(campos[14]);
+	r.bajas_dron = valorEntero(campos[15]);
+	r.bajas_girador = valorEntero(campos[16]);
+	r.bajas_divisor = valorEntero(campos[17]);
+	r.bajas_mini = valorEntero(campos[18]);
+	r.bajas_tanque = valorEntero(campos[19]);
+	r.bajas_camaleon = valorEntero(campos[20]);
+
 	return true;
-}
-// La siguiente class es para establecer el historial de partidas utilizando una lista simple
+}// La siguiente class es para establecer el historial de partidas utilizando una lista simple
 class historialPartidas {
 	NodoRegistroPartida* cabeza;
 	NodoRegistroPartida* cola;
@@ -1181,6 +1235,7 @@ public:
 		cola = nuevo;
 		tam++;
 	}
+
 	// La siguiente función es para cargar el historial por medio del archivo.csv
 	int cargaHistorial(string cargar) {
 		ifstream archivo(cargar.c_str());
@@ -1213,14 +1268,24 @@ public:
 		if (!archivo.is_open()) {
 			return false;
 		}
-		archivo << "id_partida,semilla,modo,jugador,es_bot,posicion,puntaje,oleada,disparos,correctos,erroneos,combo_max,pulsos,dano_total,ticks" << endl;
-		NodoRegistroPartida* Aux = cabeza;
-		while (Aux != nullptr) {
-			const RegistroPartida& f = Aux->dato;
-			archivo << f.id_partida << "," << f.semilla << "," << f.modo << "," << f.jugador << "," << f.es_bot << ","
-				<< f.posicion << "," << f.puntaje << "," << f.oleada << "," << f.disparos << "," << f.correctos << ","
-				<< f.erroneos << "," << f.combo_max << "," << f.pulsos << "," << f.dano_total << "," << f.ticks << endl;
-			Aux = Aux->sig;
+		archivo << "id_partida,semilla,modo,jugador,es_bot,posicion,puntaje,oleada,"
+			"disparos,correctos,erroneos,combo_max,pulsos,dano_total,ticks,"
+			"bajas_dron,bajas_girador,bajas_divisor,bajas_mini,bajas_tanque,"
+			"bajas_camaleon\n";
+
+		for (NodoRegistroPartida* actual = cabeza;
+			actual != nullptr;
+			actual = actual->sig) {
+			const RegistroPartida& f = actual->dato;
+
+			archivo << f.id_partida << "," << f.semilla << "," << f.modo << ","
+				<< f.jugador << "," << f.es_bot << "," << f.posicion << ","
+				<< f.puntaje << "," << f.oleada << "," << f.disparos << ","
+				<< f.correctos << "," << f.erroneos << "," << f.combo_max << ","
+				<< f.pulsos << "," << f.dano_total << "," << f.ticks << ","
+				<< f.bajas_dron << "," << f.bajas_girador << ","
+				<< f.bajas_divisor << "," << f.bajas_mini << ","
+				<< f.bajas_tanque << "," << f.bajas_camaleon << "\n";
 		}
 		archivo.close();
 		return true;
@@ -1357,7 +1422,7 @@ public:
 
 // La siguiente función es para recorrer el historial de partidas y por cada registro se inserta una nueva entrada de datos.
 // Precisión se calcula aciertos/disparos * 100 y si no hubieron disparos se establece en 0 para no tener que hacer la división.
-		void historialRanking(const HistorialPartidas& historial, Ranking& ranking) {
+		void historialRanking(const historialPartidas& historial, Ranking& ranking) {
 			NodoRegistroPartida* Aux = historial.primero();
 			while (Aux != nullptr) {
 				EntradaRanking e;
@@ -1576,7 +1641,7 @@ private:
 	int oleadaActual;
 	int tickInicioOleada;
 	int siguienteEnemigo;
-	int semillaPartida;
+	uint32_t semillaPartida;
 	bool partidaTerminada;
 	int cantidadDisparos;
 	int disparosAcertados;
@@ -1757,7 +1822,7 @@ private:
 					balaActual->dato.marcada = true;
 
 					if (enemigoActual->dato.vida <= 0) {
-						enemigos.eliminar(enemigoActual);
+						reemplazarPorMinis(enemigos, enemigoActual, siguienteEnemigo);
 					}
 
 					// Una bala solo puede impactar a un enemigo.
@@ -1837,6 +1902,7 @@ private:
 		cout << "[FIN] Oleada " << oleadaActual
 			<< " terminada." << endl;
 
+		jugadorActual.repararNucleo(8);
 		++oleadaActual;
 		tickInicioOleada = tickActual + 1;
 
@@ -1846,14 +1912,15 @@ private:
 		);
 	}
 
+
 public:
-	Motor()
+	Motor(uint32_t semilla = 42)
 		: tickActual(0),
 		ultimoTickProcesado(-1),
 		oleadaActual(1),
 		tickInicioOleada(0),
 		siguienteEnemigo(1),
-		semillaPartida(42),
+		semillaPartida(semilla),
 		partidaTerminada(false),
 		cantidadDisparos(0),
 		disparosAcertados(0),
@@ -1908,6 +1975,53 @@ public:
 			<< " | Carga: " << jugadorActual.obtenerCargaPulse()
 			<< endl;
 	}
+	string firmaEstado() const {
+		ostringstream salida;
+		salida << setprecision(17)
+			<< tickActual << "|" << ultimoTickProcesado << "|"
+			<< oleadaActual << "|" << tickInicioOleada << "|"
+			<< siguienteEnemigo << "|" << partidaTerminada << "|"
+			<< cantidadDisparos << "|" << disparosAcertados << "|"
+			<< jugadorActual.obtenerPosicionAngular() << "|"
+			<< static_cast<int>(jugadorActual.obtenerColorActual()) << "|"
+			<< jugadorActual.obtenerCargaPulse() << "|"
+			<< jugadorActual.obtenerPuntaje() << "|"
+			<< jugadorActual.obtenerComboActual() << "|"
+			<< jugadorActual.obtenerComboMaximo() << "|"
+			<< jugadorActual.obtenerVidaNucleo() << "|"
+			<< pulso.activo << "|" << pulso.radio_actual << "|";
+
+		for (NodoEnemigo* actual = enemigos.primero();
+			actual != nullptr;
+			actual = actual->sig) {
+			const Enemigo& e = actual->dato;
+			salida << e.id << "," << static_cast<int>(e.tipo) << ","
+				<< e.color << "," << e.r << "," << e.theta << ","
+				<< e.omega << "," << e.vida << "," << e.radio << ","
+				<< e.ticksColor << "," << e.sentido << ";";
+		}
+
+		salida << "|";
+
+		for (NodoBala* actual = balas.primero();
+			actual != nullptr;
+			actual = actual->sig) {
+			const Bala& b = actual->dato;
+			salida << b.x << "," << b.y << "," << b.vx << "," << b.vy
+				<< "," << b.color << "," << b.duenio << ","
+				<< b.marcada << ";";
+		}
+
+		salida << "|";
+
+		colaSpawn.recorrer([&salida](const Aparicion& a) {
+			salida << a.tick << "," << static_cast<int>(a.tipo) << ","
+				<< a.color << "," << a.theta << "," << a.sentido << ";";
+			});
+
+		return salida.str();
+	}
+
 };
 
 // El siguiente bool se utiliza para comprobar que la lista siga su recorrido hacia adelante y hacia atrás.
@@ -2005,57 +2119,148 @@ void pruebasRanking() {
 // ============================================================
 // SIMULACIÓN DE CONSOLA CON BOT1
 // ============================================================
+void pruebaReproducibilidad() {
+	Motor primero(42);
+	Motor segundo(42);
+	bool iguales = true;
+
+	for (int tick = 0; tick < 20000 && !primero.terminada(); ++tick) {
+		Accion accion;
+
+		if (tick % 53 == 0) {
+			accion.tieneGiro = true;
+			accion.anguloObjetivo = static_cast<float>((tick * 37) % 360);
+		}
+
+		if (tick % 79 == 0) {
+			accion.tieneColor = true;
+			accion.color = static_cast<Color>((tick / 79) % 3);
+		}
+
+		accion.activarPulso = tick % 211 == 0;
+
+		primero.tick(accion);
+		segundo.tick(accion);
+
+		if (primero.firmaEstado() != segundo.firmaEstado()) {
+			iguales = false;
+			break;
+		}
+	}
+
+	iguales = iguales &&
+		primero.firmaEstado() == segundo.firmaEstado() &&
+		primero.terminada() == segundo.terminada();
+
+	reportar("P08", "reproducibilidad", iguales);
+}
+
+void pruebaColorIncorrecto() {
+	Jugador jugador;
+	jugador.incrementarCombo();
+	jugador.incrementarCombo();
+
+	Enemigo enemigo = crearEnemigo(1);
+	enemigo.r = 120.0;
+	enemigo.color = MAGENTA;
+	const int vidaInicial = enemigo.vida;
+
+	Bala bala = crearBala(0);
+	bala.color = CIAN;
+
+	resolverImpacto(bala, enemigo, jugador);
+
+	const bool correcto =
+		fabs(enemigo.r - 129.0) < 0.000001 &&
+		enemigo.vida == vidaInicial &&
+		jugador.obtenerComboActual() == 0 &&
+		jugador.obtenerPuntaje() == 0.0f;
+
+	reportar("P09", "impacto de color incorrecto", correcto);
+}
+
+void pruebaDivisor() {
+	ListaEnemigos enemigos;
+	int siguienteId = 10;
+
+	Enemigo anterior = crearEnemigo(1);
+	Enemigo divisor = crearEnemigo(2);
+	Enemigo posterior = crearEnemigo(3);
+
+	divisor.tipo = TipoEnemigo::Divisor;
+	divisor.color = CIAN;
+	divisor.r = 150.0;
+	divisor.theta = 90.0;
+
+	enemigos.insertarFinal(anterior);
+	NodoEnemigo* nodoDivisor = enemigos.insertarFinal(divisor);
+	enemigos.insertarFinal(posterior);
+
+	reemplazarPorMinis(enemigos, nodoDivisor, siguienteId);
+
+	NodoEnemigo* mini1 = enemigos.primero()->sig;
+	NodoEnemigo* mini2 = mini1->sig;
+	NodoEnemigo* nodoPosterior = mini2->sig;
+
+	const bool correcto =
+		enemigos.tamano() == 4 &&
+		mini1->dato.tipo == TipoEnemigo::Mini &&
+		mini2->dato.tipo == TipoEnemigo::Mini &&
+		nodoPosterior->dato.id == posterior.id &&
+		mini1->dato.color != divisor.color &&
+		mini2->dato.color != divisor.color &&
+		mini1->dato.color != mini2->dato.color &&
+		fabs(mini1->dato.r - divisor.r) < 0.000001 &&
+		fabs(mini2->dato.r - divisor.r) < 0.000001;
+
+	reportar("P10", "divisor inserta dos minis en su posición", correcto);
+}
+
+void pruebaPulso() {
+	Jugador jugador;
+	Pulso pulso{ false, 0.0 };
+
+	jugador.aumentarPulso(99.0f);
+	activarPulso(pulso, jugador);
+	const bool noActivaConCargaIncompleta = !pulso.activo;
+
+	jugador.aumentarPulso(1.0f);
+	activarPulso(pulso, jugador);
+
+	ListaEnemigos enemigos;
+	Enemigo dentro = crearEnemigo(1);
+	dentro.r = 32.0;
+	dentro.color = MAGENTA;
+
+	Enemigo fuera = crearEnemigo(2);
+	fuera.r = 100.0;
+
+	enemigos.insertarFinal(dentro);
+	enemigos.insertarFinal(fuera);
+
+	avanzarPulso(pulso, enemigos, jugador);
+
+	const bool correcto =
+		noActivaConCargaIncompleta &&
+		pulso.activo &&
+		jugador.obtenerCargaPulse() == 0.0f &&
+		enemigos.tamano() == 1 &&
+		enemigos.primero()->dato.id == fuera.id &&
+		jugador.obtenerPuntaje() == puntosPorTipo(TipoEnemigo::Dron) &&
+		jugador.obtenerComboActual() == 0;
+
+	reportar("P11", "activación y bajas por pulso", correcto);
+}
+
+void pruebasMotor() {
+	pruebaReproducibilidad();
+	pruebaColorIncorrecto();
+	pruebaDivisor();
+	pruebaPulso();
+}
 
 int main(int argc, char* argv[]) {
-	if (argc >= 2) {
-		string comando = argv[1];
-		if (comando == "--ranking") {
-			if (argc < 3) {
-				cout << "Uso: ./faseorbital --ranking historial.csv" << endl;
-				return 1;
-			}
-			string archivo = argv[2];
-			HistorialPartidas historial;
-			if (historial.cargaHistorial(archivo) < 0) {
-				cout << "No se pudo abrir el historial " << archivo << endl;
-				return 1;
-			}
-			Ranking ranking;
-			historialRanking(historial, ranking);
-			ranking.tablaRanking(10);
-			return 0;
-		}
-		cout << "Comando desconocido: " << comando << endl;
-		return 1;
-	}
-	pruebasRanking();
-	pruebasRondaJugadores();
-	Motor motor;
-	const int limiteTicks = 20000;
-
-	cout << "----- SIMULACION FASE ORBITAL: BOT1 -----"
-		<< endl;
-
-	for (int tick = 0;
-		tick < limiteTicks && !motor.terminada();
-		++tick) {
-		motor.tickBot();
-
-		// Reduce el volumen de salida: muestra estado cada 30 ticks.
-		if ((tick + 1) % 30 == 0) {
-			motor.imprimirEstado();
-		}
-	}
-
-	motor.imprimirEstado();
-
-	if (motor.terminada()) {
-		cout << "El bot terminó la partida." << endl;
-	}
-	else {
-		cout << "Simulacion detenida al llegar al limite de ticks."
-			<< endl;
-	}
+	pruebasMotor();
 
 	return 0;
 }
