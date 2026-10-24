@@ -318,40 +318,31 @@ public:
 	}
 
 	// Las siguientes líneas son las constructoras de copia, se hace esta copia para que cuando se recorra la cola original y por cada nodo se cree un nuevo nodo con los mismos datos.
-	ColaSpawn(const ColaSpawn& otra) {
-		frente = nullptr;
-		final = nullptr;
-		tam = 0;
-		NodoAparicion* Aux = otra.frente;
-		while (Aux != nullptr) {
-			encolar(Aux->dato);
-			Aux = Aux->sig;
+	ColaSpawn(const ColaSpawn& otra)
+		: frente(nullptr), final(nullptr), tam(0) {
+		try {
+			const NodoAparicion* actual = otra.frente;
+
+			while (actual != nullptr) {
+				encolar(actual->dato);
+				actual = actual->sig;
+			}
+		}
+		catch (...) {
+			limpiar();
+			throw;
 		}
 	}
 
-	// Este es el operador de asignación, realiza primero una revisión la cual verifica que no se esté asignando la cola a si misma y después de esta revisión
-	// libera los nodos que ya tenía esta cola y por último copia uno por uno los nodos de la otra cola.
 	ColaSpawn& operator=(const ColaSpawn& otra) {
 		if (this != &otra) {
-			NodoAparicion* Aux = frente;
-			while (Aux != nullptr) {
-				NodoAparicion* borrar = Aux;
-				Aux = Aux->sig;
-				delete borrar;
-			}
-			frente = nullptr;
-			final = nullptr;
-			tam = 0;
-			Aux = otra.frente;
-			while (Aux != nullptr) {
-				encolar(Aux->dato);
-				Aux = Aux->sig;
-			}
+			ColaSpawn copia(otra);
+			intercambiar(copia);
 		}
+
 		return *this;
-
-
 	}
+
 	template<class Operacion>
 	void recorrer(Operacion aplicar) const {
 		const NodoAparicion* actual = frente;
@@ -418,6 +409,33 @@ public:
 	// Se usan const para que no se pueda modificar la cola y devolver el tamaño o indicar si esta vacía.
 	int tamano() const { return tam; }
 	bool vacia() const { return tam == 0; }
+
+	void limpiar() {
+
+		while (frente != nullptr) {
+			NodoAparicion* borrar = frente;
+			frente = frente->sig;
+
+			delete borrar;
+		}
+
+		final = nullptr;
+		tam = 0;
+	}
+
+	void intercambiar(ColaSpawn& otra) {
+		NodoAparicion* frenteTemp = frente;
+		frente = otra.frente;
+		otra.frente = frenteTemp;
+
+		NodoAparicion* finalTemp = final;
+		final = otra.final;
+		otra.final = finalTemp;
+
+		int tamTemp = tam;
+		tam = otra.tam;
+		otra.tam = tamTemp;
+	}
 };
 
 Enemigo crearEnemigoAparicion(const Aparicion& aparicion, int id) {
@@ -1600,6 +1618,55 @@ ColaSpawn generarOleada(int oleada, int semilla) {
 	return nuevaOleada;
 }
 
+bool mismaAparicion(const Aparicion& a, const Aparicion& b) {
+	return a.tipo == b.tipo &&
+		a.color == b.color &&
+		a.theta == b.theta &&
+		a.tick == b.tick &&
+		a.sentido == b.sentido;
+}
+
+void pruebaCopiaProfundaOleada() {
+	const ColaSpawn oleadaBase = generarOleada(1, 42);
+	ColaSpawn colaAna(oleadaBase);
+	ColaSpawn colaLuis(oleadaBase);
+
+	const int cantidadInicial = oleadaBase.tamano();
+
+	Aparicion consumida;
+	int consumidasPorAna = 0;
+
+	while (colaAna.desencolar(consumida)) {
+		++consumidasPorAna;
+	}
+
+	const Aparicion* frenteBase = oleadaBase.verFrente();
+	const Aparicion* frenteLuis = colaLuis.verFrente();
+
+	bool copiasIntactas =
+		consumidasPorAna == cantidadInicial &&
+		colaAna.vacia() &&
+		oleadaBase.tamano() == cantidadInicial &&
+		colaLuis.tamano() == cantidadInicial &&
+		frenteBase != nullptr &&
+		frenteLuis != nullptr &&
+		mismaAparicion(*frenteBase, *frenteLuis);
+
+	ColaSpawn colaAsignada;
+	colaAsignada = oleadaBase;
+
+	while (colaAsignada.desencolar(consumida)) {
+	}
+
+	copiasIntactas =
+		copiasIntactas &&
+		colaAsignada.vacia() &&
+		oleadaBase.tamano() == cantidadInicial &&
+		colaLuis.tamano() == cantidadInicial;
+
+	reportar("FAS-71", "copias independientes de ColaSpawn", copiasIntactas);
+}
+
 enum class TipoAccion {
 	NONE, 
 	GIRAR_A,
@@ -2257,6 +2324,7 @@ void pruebasMotor() {
 	pruebaColorIncorrecto();
 	pruebaDivisor();
 	pruebaPulso();
+	pruebaCopiaProfundaOleada();
 }
 
 int main(int argc, char* argv[]) {
