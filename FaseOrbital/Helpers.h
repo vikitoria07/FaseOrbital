@@ -1,5 +1,8 @@
 #include <cmath>
 #include <iostream>
+#include <cstdint>
+
+using namespace std;
 
 constexpr double PI = 3.141592;
 
@@ -55,6 +58,7 @@ int numEnemigos(int oleada) {
 	return 6 + 3 * oleada;
 }
 
-long long semillaOleada(int oleada, int semilla) {
-	return semilla * 1000LL + oleada;
+inline std::uint64_t semillaOleada(int oleada, std::uint32_t semilla) {
+	return static_cast<std::uint64_t>(semilla) * 1000ULL
+		+ static_cast<std::uint32_t>(oleada);
 }
