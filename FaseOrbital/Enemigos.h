@@ -530,3 +530,38 @@ void resolverImpacto(Bala& bala, Enemigo& enemigo, Jugador& jugador) {
 	int carga = enemigo.tipo == TipoEnemigo::Tanque ? 14 : 5;
 	jugador.aumentarPulso(carga);
 }
+
+// Se realiza esta función para crear un enemigo para probarlo y obtener los resultados esperados, se establece su tipo, color, ángulo, distancia con el núcleo etc.
+Enemigo crearEnemigo(int id) {
+	Enemigo e;
+	e.id = id;
+	e.tipo = TipoEnemigo::Dron;
+	e.color = 0;
+	e.r = 300;
+	e.theta = 0;
+	e.omega = 0;
+	e.vida = 1;
+	e.radio = 6;
+	e.ticksColor = 0;
+	return e;
+}
+
+// Esta función es para crear una aparición que se distinga de las otras, el número n se usa como tick y para calcular el ángulo, así cada aparición
+// tiene datos diferentes y se puede comprobar el orden de la cola y que las copias tengan los mismos datos.
+Aparicion crearAparicion(int n) { // n es el tick de la aparición y se usa para calcular el ángulo y el sentido
+	Aparicion a;
+	a.tipo = TipoEnemigo::Dron;
+	a.color = n % 3;
+	a.theta = n * 10.0;
+	a.tick = n;
+	a.sentido = n % 2;
+	return a;
+}
+
+bool mismaAparicion(const Aparicion& a, const Aparicion& b) {
+	return a.tipo == b.tipo &&
+		a.color == b.color &&
+		a.theta == b.theta &&
+		a.tick == b.tick &&
+		a.sentido == b.sentido;
+}

@@ -100,3 +100,37 @@ Bala crearBalaAutomatica(const Jugador& jugador, int identificadorJugador) {
 
 	return bala;
 }
+
+// Este bool es para cumplir la condición de eliminarBalas el cual recibe una bala y si devuelve true es porque el duenio es par y se debe borrar la bala. 
+bool condicionpar(const Bala& b) {
+	return b.duenio % 2 == 0;
+}
+
+// Este bool es una condición para la prueba del resultado "P04", donde establece la cabeza que es el 7 y dos grupos de balas consecutivas.
+bool marcabalas(const Bala& b) {
+	return b.duenio == 7 || b.duenio == 6 || b.duenio == 5 || b.duenio == 3 || b.duenio == 2;
+}
+
+// Esta función es para crear un tipo de bala que se distinga de las otras, estableciendole todos sus datos como posición etc.
+Bala crearBala(int duenio) {
+	Bala b;
+	b.x = 0;
+	b.y = 0;
+	b.vx = 0;
+	b.vy = 0;
+	b.color = 0;
+	b.duenio = duenio;
+	return b;
+}
+
+// AÑADIR BALAS A LISTA DE BALAS
+void procesarTick(int tick, Jugador& jugador, ListaBalas& listaBalas) {
+	if (tick % 4 == 0) {
+		Bala bala = crearBalaAutomatica(
+			jugador,
+			jugador.obtenerIdentificador()
+		);
+
+		listaBalas.insertarInicio(bala);
+	}
+}

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cmath>
 #include <string>
+#include <cmath> 
 
 enum Color {
     CIAN = 0,
@@ -304,3 +304,14 @@ public:
     int tamano() const { return tam; }
     bool vacia() const { return tam == 0; }
 };
+
+Jugador crearJugador(std::string nombre, bool Bot) {
+    Jugador jug;
+    jug.ponerNombre(nombre);
+    jug.aumentarPuntaje(100);
+    jug.cambiarComboMaximo(100);
+    jug.cambiarColorActual(MAGENTA);
+    jug.aumentarPulso(100);
+    return jug;
+}
+

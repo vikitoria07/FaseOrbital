@@ -70,3 +70,43 @@ inline std::uint64_t semillaOleada(int oleada, std::uint32_t semilla) {
 bool rondaimpar(int rondaactual) {
 	return rondaactual % 2 == 1;
 }
+
+int separacionCampos(string linea, string campos[], int maximo) {
+	int cantidad = 0;
+	string actual = "";
+	for (int i = 0; i < static_cast<int>(linea.size()); i++) {
+		if (linea[i] == ',') {
+			if (cantidad < maximo) {
+				campos[cantidad] = actual;
+			}
+			cantidad++;
+			actual = "";
+		}
+		else if (linea[i] != '\r') {
+			actual = actual + linea[i];
+		}
+	}
+	if (cantidad < maximo) {
+		campos[cantidad] = actual;
+	}
+	cantidad++;
+	return cantidad;
+}
+bool valorenteroValido(string entero) {
+	if (entero.size() == 0 || entero.size() > 9) {
+		return false;
+	}
+	for (int i = 0; i < static_cast<int>(entero.size()); i++) {
+		if (entero[i] < '0' || entero[i] > '9') {
+			return false;
+		}
+	}
+	return true;
+}
+int valorEntero(string entero) {
+	int valor = 0;
+	for (int i = 0; i < static_cast<int>(entero.size()); i++) {
+		valor = valor * 10 + (entero[i] - '0');
+	}
+	return valor;
+}
