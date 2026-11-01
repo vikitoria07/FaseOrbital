@@ -14,6 +14,7 @@
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_font.h>
 #include <cstring>
+#include <allegro5/allegro_ttf.h>
 
 // HEADERS
 
@@ -35,14 +36,17 @@
 
 using namespace std;
 
-
 // ============================================================
 // VISTA (solo lee el estado del motor, no aplica reglas)
 // ============================================================
 
+const int ANCHO_PANTALLA = 3840;
+const int ALTO_PANTALLA = 2160;
+const int TAM_PIXEL = 30;
+
 namespace {
-	constexpr float CENTRO_X = 400.0f;
-	constexpr float CENTRO_Y = 300.0f;
+	constexpr float CENTRO_X = static_cast<float>(ANCHO_PANTALLA) / 2.0f;
+	constexpr float CENTRO_Y = static_cast<float>(ALTO_PANTALLA) / 2.0f;
 	constexpr float RADIO_ORBITA = 100.0f;
 	constexpr float RADIO_NUCLEO = 20.0f;
 	constexpr float TAMANO_NAVE = 6.0f;
@@ -113,8 +117,6 @@ void dibujarMundo(const Motor& motor) {
 	dibujarBalas(motor.obtenerBalas());
 	dibujarNave(motor.obtenerJugador());
 }
-
-
 
 // ============================================================
 // ENTRADA (traduce teclado y mouse a Accion, sin aplicar reglas)
@@ -231,13 +233,13 @@ void dibujarHUD(const Motor& motor, const ALLEGRO_FONT* fuente, const char* nomb
 		"Carga pulso: %.0f%%", jugador.obtenerCargaPulse());
 
 	const float carga = jugador.obtenerCargaPulse();
-	al_draw_rectangle(10.0f, 120.0f, 110.0f, 130.0f, blanco, 1.0f);
-	al_draw_filled_rectangle(10.0f, 120.0f, 10.0f + carga, 130.0f,
+	al_draw_rectangle(10.0f, 306.0f, 110.0f, 316.0f, blanco, 1.0f);
+	al_draw_filled_rectangle(10.0f, 306.0f, 10.0f + carga, 316.0f,
 		al_map_rgb(255, 255, 0));
 }
 
 // ============================================================
-// PANTALLAS (estetica Game Boy)
+// PANTALLAS 
 // ============================================================
 
 constexpr int MAX_JUGADORES = 4;
@@ -257,8 +259,6 @@ ALLEGRO_COLOR colorGB(int indice) {
 	default: return al_map_rgb(255, 230, 80);  // amarillo
 	}
 }
-
-const int TAM_PIXEL = 8;
 
 // Glifo 5x5 por carácter: '1' es píxel encendido.
 const char* glifo(char c) {
@@ -293,38 +293,39 @@ void dibujarTextoPixel(const char* texto, float x, float y, ALLEGRO_COLOR color)
 	}
 }
 
-// Título centrado con sombra de un píxel de desplazamiento.
-void dibujarTituloPixel(const char* texto, float y) {
-	float ancho = static_cast<float>(std::strlen(texto) * 6 * TAM_PIXEL - TAM_PIXEL);
-	float x = (800.0f - ancho) / 2.0f;
-	dibujarTextoPixel(texto, x + TAM_PIXEL, y + TAM_PIXEL, colorGB(1));
-	dibujarTextoPixel(texto, x, y, colorGB(3));
+void texto(const ALLEGRO_FONT* fuente, float y, ALLEGRO_COLOR color, const char* t) {
+	al_draw_text(fuente, color, ANCHO_PANTALLA / 2.0f, y, ALLEGRO_ALIGN_CENTRE, t);
 }
 
 // Marco de bloques alternados alrededor de la pantalla.
+// Marco de bloques alternados alrededor de la pantalla.
 void dibujarMarco() {
-	for (int i = 0; i < 800; i += TAM_PIXEL * 2) {
+	for (int i = 0; i < ANCHO_PANTALLA; i += TAM_PIXEL * 2) {
 		ALLEGRO_COLOR c = (i / TAM_PIXEL) % 2 == 0 ? colorGB(1) : colorGB(2);
 		al_draw_filled_rectangle(i, 0, i + TAM_PIXEL, TAM_PIXEL, c);
-		al_draw_filled_rectangle(i, 600 - TAM_PIXEL, i + TAM_PIXEL, 600, c);
+		al_draw_filled_rectangle(i, ALTO_PANTALLA - TAM_PIXEL, i + TAM_PIXEL, ALTO_PANTALLA, c);
 	}
-	for (int j = 0; j < 600; j += TAM_PIXEL * 2) {
+	for (int j = 0; j < ALTO_PANTALLA; j += TAM_PIXEL * 2) {
 		ALLEGRO_COLOR c = (j / TAM_PIXEL) % 2 == 0 ? colorGB(1) : colorGB(2);
 		al_draw_filled_rectangle(0, j, TAM_PIXEL, j + TAM_PIXEL, c);
-		al_draw_filled_rectangle(800 - TAM_PIXEL, j, 800, j + TAM_PIXEL, c);
+		al_draw_filled_rectangle(ANCHO_PANTALLA - TAM_PIXEL, j, ANCHO_PANTALLA, j + TAM_PIXEL, c);
 	}
 }
 
-void texto(const ALLEGRO_FONT* fuente, float y, ALLEGRO_COLOR color, const char* t) {
-	al_draw_text(fuente, color, 400.0f, y, ALLEGRO_ALIGN_CENTRE, t);
+// Título centrado con sombra de un píxel de desplazamiento.
+void dibujarTituloPixel(const char* texto, float y) {
+	float ancho = static_cast<float>(std::strlen(texto) * 6 * TAM_PIXEL - TAM_PIXEL);
+	float x = (ANCHO_PANTALLA - ancho) / 2.0f;
+	dibujarTextoPixel(texto, x + TAM_PIXEL, y + TAM_PIXEL, colorGB(1));
+	dibujarTextoPixel(texto, x, y, colorGB(3));
 }
 
 // Pantalla de inicio: fondo, marco, título y aviso.
 void dibujarPantallaTitulo(const ALLEGRO_FONT* fuente) {
 	al_clear_to_color(colorGB(0));
 	dibujarMarco();
-	dibujarTituloPixel("FASE ORBITAL", 220.0f);
-	texto(fuente, 400.0f, colorGB(3), "PRESIONA ENTER");
+	dibujarTituloPixel("FASE ORBITAL", ALTO_PANTALLA * 0.35f);
+	texto(fuente, ALTO_PANTALLA * 0.65f, colorGB(3), "PRESIONA ENTER");
 }
 
 
@@ -516,11 +517,11 @@ void dibujarPantalla(const Sesion& s, const ALLEGRO_FONT* fuente) {
 		texto(fuente, 100.0f, oscuro, "RESUMEN");
 		if (s.juego != nullptr) {
 			const Jugador& jugador = s.juego->obtenerJugador();
-			al_draw_textf(fuente, oscuro, 400.0f, 160.0f, ALLEGRO_ALIGN_CENTRE,
+			al_draw_textf(fuente, oscuro, ANCHO_PANTALLA / 2.0f, 160.0f, ALLEGRO_ALIGN_CENTRE,
 				"Puntaje: %.0f", jugador.obtenerPuntaje());
-			al_draw_textf(fuente, oscuro, 400.0f, 180.0f, ALLEGRO_ALIGN_CENTRE,
+			al_draw_textf(fuente, oscuro, ANCHO_PANTALLA / 2.0f, 180.0f, ALLEGRO_ALIGN_CENTRE,
 				"Combo maximo: %d", jugador.obtenerComboMaximo());
-			al_draw_textf(fuente, oscuro, 400.0f, 200.0f, ALLEGRO_ALIGN_CENTRE,
+			al_draw_textf(fuente, oscuro, ANCHO_PANTALLA / 2.0f, 200.0f, ALLEGRO_ALIGN_CENTRE,
 				"Oleada: %d", s.juego->obtenerOleada());
 		}
 		texto(fuente, 300.0f, medioOscuro, "ENTER para continuar");
@@ -555,11 +556,12 @@ int main() {
 	al_install_mouse();
 	al_init_primitives_addon();
 	al_init_font_addon();
+	al_init_ttf_addon();
 
-	ALLEGRO_DISPLAY* display = al_create_display(800, 600);
+	ALLEGRO_DISPLAY* display = al_create_display(ANCHO_PANTALLA, ALTO_PANTALLA);
 	ALLEGRO_TIMER* timer = al_create_timer(1.0 / 60.0);
 	ALLEGRO_EVENT_QUEUE* cola = al_create_event_queue();
-	ALLEGRO_FONT* fuente = al_create_builtin_font();
+	ALLEGRO_FONT* fuente = al_load_ttf_font("04b_25__.ttf", 48, 0);
 
 	if (!display || !timer || !cola || !fuente) {
 		fprintf(stderr, "No se pudo crear display, timer, cola de eventos o fuente.\n");
