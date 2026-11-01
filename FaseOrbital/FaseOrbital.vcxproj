@@ -147,6 +147,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Balas.h" />
+    <ClInclude Include="Enemigos.h" />
     <ClInclude Include="Generador.h" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="Jugador.h" />
