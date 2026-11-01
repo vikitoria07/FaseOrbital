@@ -147,9 +147,18 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Acciones.h" />
+    <ClInclude Include="Balas.h" />
+    <ClInclude Include="Bitacora.h" />
+    <ClInclude Include="Enemigos.h" />
     <ClInclude Include="Generador.h" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="Jugador.h" />
+    <ClInclude Include="MotorJuego.h" />
+    <ClInclude Include="Pruebas.h" />
+    <ClInclude Include="Pulso.h" />
+    <ClInclude Include="Estadisticas&amp;Ranking.h" />
+    <ClInclude Include="Scripts.h" />
     <ClInclude Include="VistaJuego.h" />
   </ItemGroup>
   <ItemGroup>
