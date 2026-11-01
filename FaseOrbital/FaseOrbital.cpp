@@ -2411,87 +2411,165 @@ void dibujarMundo(const Motor& motor) {
 	dibujarNave(motor.obtenerJugador());
 }
 
+// ============================================================
+// ENTRADA (traduce teclado y mouse a Accion, sin aplicar reglas)
+// ============================================================
 
-int main(int argc, char* argv[]) {
+namespace {
+	constexpr float VELOCIDAD_GIRO = 4.0f; // grados por tick
+}
 
-	// 1. Inicializar Allegro
+struct EstadoEntrada {
+	bool izquierda = false;
+	bool derecha = false;
+	bool pausado = false;
+	bool pulsoPedido = false;
+	bool colorPedido = false;
+	Color colorSeleccionado = MAGENTA;
+	bool mouseMovido = false;
+	float anguloMouse = 0.0f;
+};
+
+void procesarEvento(const ALLEGRO_EVENT& ev, EstadoEntrada& e) {
+	switch (ev.type) {
+	case ALLEGRO_EVENT_KEY_DOWN:
+		switch (ev.keyboard.keycode) {
+		case ALLEGRO_KEY_LEFT:  e.izquierda = true; break;
+		case ALLEGRO_KEY_RIGHT: e.derecha = true; break;
+		case ALLEGRO_KEY_1:
+		case ALLEGRO_KEY_PAD_1:
+			e.colorSeleccionado = CIAN; e.colorPedido = true; break;
+		case ALLEGRO_KEY_2:
+		case ALLEGRO_KEY_PAD_2:
+			e.colorSeleccionado = MAGENTA; e.colorPedido = true; break;
+		case ALLEGRO_KEY_3:
+		case ALLEGRO_KEY_PAD_3:
+			e.colorSeleccionado = AMARILLO; e.colorPedido = true; break;
+		case ALLEGRO_KEY_SPACE: e.pulsoPedido = true; break;
+		case ALLEGRO_KEY_P:
+		case ALLEGRO_KEY_ESCAPE: e.pausado = !e.pausado; break;
+		}
+		break;
+
+	case ALLEGRO_EVENT_KEY_UP:
+		if (ev.keyboard.keycode == ALLEGRO_KEY_LEFT)  e.izquierda = false;
+		if (ev.keyboard.keycode == ALLEGRO_KEY_RIGHT) e.derecha = false;
+		break;
+
+	case ALLEGRO_EVENT_MOUSE_AXES: {
+		float dx = static_cast<float>(ev.mouse.x) - CENTRO_X;
+		float dy = static_cast<float>(ev.mouse.y) - CENTRO_Y;
+		if (dx != 0.0f || dy != 0.0f) {
+			e.anguloMouse = normalizarAngulo(
+				static_cast<float>(atan2(dy, dx) * 180.0 / PI));
+			e.mouseMovido = true;
+		}
+		break;
+	}
+
+	case ALLEGRO_EVENT_MOUSE_BUTTON_DOWN:
+		if (ev.mouse.button == 1) {
+			e.pulsoPedido = true;
+		}
+		break;
+	}
+}
+
+// Las flechas tienen prioridad sobre el mouse. Los eventos de un solo uso se consumen aquí.
+Accion construirAccion(EstadoEntrada& e, const Jugador& jugador) {
+	Accion accion;
+
+	if (e.izquierda || e.derecha) {
+		float delta = e.derecha ? VELOCIDAD_GIRO : -VELOCIDAD_GIRO;
+		accion.tieneGiro = true;
+		accion.anguloObjetivo =
+			normalizarAngulo(jugador.obtenerPosicionAngular() + delta);
+	}
+	else if (e.mouseMovido) {
+		accion.tieneGiro = true;
+		accion.anguloObjetivo = e.anguloMouse;
+		e.mouseMovido = false;
+	}
+
+	if (e.colorPedido) {
+		accion.tieneColor = true;
+		accion.color = e.colorSeleccionado;
+		e.colorPedido = false;
+	}
+
+	accion.activarPulso = e.pulsoPedido;
+	e.pulsoPedido = false;
+
+	return accion;
+}
+
+void dibujarPausa() {
+	al_draw_filled_rectangle(380.0f, 280.0f, 392.0f, 320.0f, al_map_rgb(255, 255, 255));
+	al_draw_filled_rectangle(408.0f, 280.0f, 420.0f, 320.0f, al_map_rgb(255, 255, 255));
+}
+
+
+int main() {
 	if (!al_init()) {
-		cout << "Error al inicializar Allegro" << endl;
+		fprintf(stderr, "No se pudo iniciar Allegro.\n");
 		return -1;
 	}
 
-	// 2. Inicializar primitivas
-	if (!al_init_primitives_addon()) {
-		cout << "Error al inicializar primitivas" << endl;
-		return -1;
-	}
+	al_install_keyboard();
+	al_install_mouse();
+	al_init_primitives_addon();
 
-	// 3. Crear ventana
-	ALLEGRO_DISPLAY* ventana = al_create_display(800, 600);
-
-	if (!ventana) {
-		cout << "No se pudo crear la ventana" << endl;
-		return -1;
-	}
-
-	// 4. Crear timer y cola de eventos
+	ALLEGRO_DISPLAY* display = al_create_display(800, 600);
 	ALLEGRO_TIMER* timer = al_create_timer(1.0 / 60.0);
-	ALLEGRO_EVENT_QUEUE* colaEventos = al_create_event_queue();
+	ALLEGRO_EVENT_QUEUE* cola = al_create_event_queue();
 
-	if (!timer || !colaEventos) {
-		cout << "Error al crear timer o cola de eventos" << endl;
+	if (!display || !timer || !cola) {
+		fprintf(stderr, "No se pudo crear display, timer o cola de eventos.\n");
+		if (cola) al_destroy_event_queue(cola);
+		if (timer) al_destroy_timer(timer);
+		if (display) al_destroy_display(display);
 		return -1;
 	}
 
-	// 5. Registrar eventos
-	al_register_event_source(
-		colaEventos,
-		al_get_display_event_source(ventana)
-	);
+	al_set_window_title(display, "Fase Orbital");
 
-	al_register_event_source(
-		colaEventos,
-		al_get_timer_event_source(timer)
-	);
-
-	// 6. Crear motor
-	Motor motor;
-
-	bool ejecutando = true;
+	al_register_event_source(cola, al_get_keyboard_event_source());
+	al_register_event_source(cola, al_get_mouse_event_source());
+	al_register_event_source(cola, al_get_display_event_source(display));
+	al_register_event_source(cola, al_get_timer_event_source(timer));
 
 	al_start_timer(timer);
 
-	// 7. Ciclo principal
-	while (ejecutando) {
+	Motor motor;
+	EstadoEntrada entrada;
+	bool salir = false;
 
-		ALLEGRO_EVENT evento;
-		al_wait_for_event(colaEventos, &evento);
+	while (!salir) {
+		ALLEGRO_EVENT ev;
+		al_wait_for_event(cola, &ev);
+		procesarEvento(ev, entrada);
 
-		// Cerrar con la X
-		if (evento.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
-			ejecutando = false;
+		if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+			salir = true;
 		}
-
-		// Actualizar y dibujar a 60 FPS
-		if (evento.type == ALLEGRO_EVENT_TIMER) {
-
-			// El motor deja de actualizarse cuando termina la partida
-			if (!motor.terminada()) {
-				motor.tickBot();
+		else if (ev.type == ALLEGRO_EVENT_TIMER) {
+			if (!entrada.pausado && !motor.terminada()) {
+				motor.tick(construirAccion(entrada, motor.obtenerJugador()));
 			}
 
 			al_clear_to_color(al_map_rgb(0, 0, 0));
-
 			dibujarMundo(motor);
-
+			if (entrada.pausado) {
+				dibujarPausa();
+			}
 			al_flip_display();
 		}
 	}
 
-	// 8. Liberar recursos
-	al_destroy_event_queue(colaEventos);
+	al_stop_timer(timer);
+	al_destroy_event_queue(cola);
 	al_destroy_timer(timer);
-	al_destroy_display(ventana);
+	al_destroy_display(display);
 
 	return 0;
 }
