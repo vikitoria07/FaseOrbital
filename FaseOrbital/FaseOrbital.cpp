@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_font.h>
 using namespace std;
 
 // En esta parte se establecen los seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
@@ -2036,6 +2037,7 @@ public:
 	const ListaBalas& obtenerBalas() const { return balas; }
 	const Pulso& obtenerPulso() const { return pulso; }
 	const Jugador& obtenerJugador() const { return jugadorActual; }
+	int obtenerOleada() const { return oleadaActual; }
 
 	void imprimirEstado() const {
 		cout << "Tick: " << ultimoTickProcesado
@@ -2411,6 +2413,8 @@ void dibujarMundo(const Motor& motor) {
 	dibujarNave(motor.obtenerJugador());
 }
 
+
+
 // ============================================================
 // ENTRADA (traduce teclado y mouse a Accion, sin aplicar reglas)
 // ============================================================
@@ -2508,6 +2512,28 @@ void dibujarPausa() {
 	al_draw_filled_rectangle(408.0f, 280.0f, 420.0f, 320.0f, al_map_rgb(255, 255, 255));
 }
 
+void dibujarHUD(const Motor& motor, const ALLEGRO_FONT* fuente, const char* nombreJugador) {
+	const Jugador& jugador = motor.obtenerJugador();
+	const ALLEGRO_COLOR blanco = al_map_rgb(255, 255, 255);
+
+	al_draw_textf(fuente, blanco, 10.0f, 10.0f, ALLEGRO_ALIGN_LEFT,
+		"Jugador: %s", nombreJugador);
+	al_draw_textf(fuente, blanco, 10.0f, 28.0f, ALLEGRO_ALIGN_LEFT,
+		"Puntaje: %.0f", jugador.obtenerPuntaje());
+	al_draw_textf(fuente, blanco, 10.0f, 46.0f, ALLEGRO_ALIGN_LEFT,
+		"Multiplicador: x%d", jugador.obtenerComboActual());
+	al_draw_textf(fuente, blanco, 10.0f, 64.0f, ALLEGRO_ALIGN_LEFT,
+		"Oleada: %d", motor.obtenerOleada());
+	al_draw_textf(fuente, blanco, 10.0f, 82.0f, ALLEGRO_ALIGN_LEFT,
+		"Vida nucleo: %d", jugador.obtenerVidaNucleo());
+	al_draw_textf(fuente, blanco, 10.0f, 100.0f, ALLEGRO_ALIGN_LEFT,
+		"Carga pulso: %.0f%%", jugador.obtenerCargaPulse());
+
+	const float carga = jugador.obtenerCargaPulse();
+	al_draw_rectangle(10.0f, 120.0f, 110.0f, 130.0f, blanco, 1.0f);
+	al_draw_filled_rectangle(10.0f, 120.0f, 10.0f + carga, 130.0f,
+		al_map_rgb(255, 255, 0));
+}
 
 int main() {
 	if (!al_init()) {
@@ -2518,13 +2544,16 @@ int main() {
 	al_install_keyboard();
 	al_install_mouse();
 	al_init_primitives_addon();
+	al_init_font_addon();
 
 	ALLEGRO_DISPLAY* display = al_create_display(800, 600);
 	ALLEGRO_TIMER* timer = al_create_timer(1.0 / 60.0);
 	ALLEGRO_EVENT_QUEUE* cola = al_create_event_queue();
+	ALLEGRO_FONT* fuente = al_create_builtin_font();
 
-	if (!display || !timer || !cola) {
-		fprintf(stderr, "No se pudo crear display, timer o cola de eventos.\n");
+	if (!display || !timer || !cola || !fuente) {
+		fprintf(stderr, "No se pudo crear display, timer, cola de eventos o fuente.\n");
+		if (fuente) al_destroy_font(fuente);
 		if (cola) al_destroy_event_queue(cola);
 		if (timer) al_destroy_timer(timer);
 		if (display) al_destroy_display(display);
@@ -2559,6 +2588,8 @@ int main() {
 
 			al_clear_to_color(al_map_rgb(0, 0, 0));
 			dibujarMundo(motor);
+			dibujarHUD(motor, fuente, "1");
+
 			if (entrada.pausado) {
 				dibujarPausa();
 			}
@@ -2570,6 +2601,7 @@ int main() {
 	al_destroy_event_queue(cola);
 	al_destroy_timer(timer);
 	al_destroy_display(display);
+	al_destroy_font(fuente);
 
 	return 0;
 }

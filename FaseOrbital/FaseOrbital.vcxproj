@@ -116,7 +116,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\Users\gabri\source\repos\PracAllegro\packages\Allegro.5.2.11.3\build\native\v143\x64\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>allegro_primitives.lib</AdditionalDependencies>
+      <AdditionalDependencies>allegro_primitives.lib;allegro_font.lib</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
