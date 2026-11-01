@@ -10,7 +10,8 @@
 #include <cstdio>
 #include <sstream>
 #include <cstdint>
-
+#include <allegro5/allegro.h>
+#include <allegro5/allegro_primitives.h>
 using namespace std;
 
 // En esta parte se establecen los seis tipos de enemigos del programa. Guarda los datos de cada enemigo en el cual id identifica al enemigo, tipo dice que clase es,
@@ -2124,6 +2125,11 @@ public:
 		return partidaTerminada;
 	}
 
+	const ListaEnemigos& obtenerEnemigos() const { return enemigos; }
+	const ListaBalas& obtenerBalas() const { return balas; }
+	const Pulso& obtenerPulso() const { return pulso; }
+	const Jugador& obtenerJugador() const { return jugadorActual; }
+
 	void imprimirEstado() const {
 		cout << "Tick: " << ultimoTickProcesado
 			<< " | Oleada: " << oleadaActual
@@ -2595,6 +2601,165 @@ int cargarScript(const string& ruta, ListaScript& script) {
 		else {
 			valida = false;
 		}
+// ============================================================
+// VISTA (solo lee el estado del motor, no aplica reglas)
+// ============================================================
+
+namespace {
+	constexpr float CENTRO_X = 400.0f;
+	constexpr float CENTRO_Y = 300.0f;
+	constexpr float RADIO_ORBITA = 100.0f;
+	constexpr float RADIO_NUCLEO = 20.0f;
+	constexpr float TAMANO_NAVE = 6.0f;
+	constexpr float TAMANO_BALA = 3.0f;
+
+	// Convierte (r, theta en grados) del motor a coordenadas de pantalla.
+	void posicionEnPantalla(double r, double thetaGrados, float& x, float& y) {
+		double rad = aRadianes(thetaGrados);
+		x = CENTRO_X + static_cast<float>(r * cos(rad));
+		y = CENTRO_Y + static_cast<float>(r * sin(rad));
+	}
+
+	// Los valores 0, 1 y 2 coinciden con CIAN, MAGENTA y AMARILLO.
+	ALLEGRO_COLOR colorDeIndice(int indice) {
+		switch (indice) {
+		case CIAN:     return al_map_rgb(0, 255, 255);
+		case MAGENTA:  return al_map_rgb(255, 0, 255);
+		default:       return al_map_rgb(255, 255, 0);
+		}
+	}
+
+	void dibujarNucleo() {
+		al_draw_circle(CENTRO_X, CENTRO_Y, RADIO_ORBITA, al_map_rgb(70, 70, 70), 1.0f);
+		al_draw_filled_circle(CENTRO_X, CENTRO_Y, RADIO_NUCLEO, al_map_rgb(255, 255, 255));
+	}
+
+	void dibujarPulso(const Pulso& pulso) {
+		if (pulso.activo) {
+			al_draw_circle(CENTRO_X, CENTRO_Y,
+				static_cast<float>(pulso.radio_actual),
+				al_map_rgb(255, 255, 255), 2.0f);
+		}
+	}
+
+	void dibujarEnemigos(const ListaEnemigos& enemigos) {
+		for (const NodoEnemigo* actual = enemigos.primero();
+			actual != nullptr;
+			actual = actual->sig) {
+			const Enemigo& e = actual->dato;
+			float x, y;
+			posicionEnPantalla(e.r, e.theta, x, y);
+			al_draw_filled_circle(x, y, static_cast<float>(e.radio), colorDeIndice(e.color));
+		}
+	}
+
+	void dibujarBalas(const ListaBalas& balas) {
+		for (const NodoBala* actual = balas.primero();
+			actual != nullptr;
+			actual = actual->sig) {
+			const Bala& b = actual->dato;
+			al_draw_filled_circle(CENTRO_X + static_cast<float>(b.x),
+				CENTRO_Y + static_cast<float>(b.y),
+				TAMANO_BALA, colorDeIndice(b.color));
+		}
+	}
+
+	void dibujarNave(const Jugador& jugador) {
+		float x, y;
+		posicionEnPantalla(RADIO_ORBITA, jugador.obtenerPosicionAngular(), x, y);
+		al_draw_filled_circle(x, y, TAMANO_NAVE, colorDeIndice(jugador.obtenerColorActual()));
+	}
+}
+
+void dibujarMundo(const Motor& motor) {
+	dibujarNucleo();
+	dibujarPulso(motor.obtenerPulso());
+	dibujarEnemigos(motor.obtenerEnemigos());
+	dibujarBalas(motor.obtenerBalas());
+	dibujarNave(motor.obtenerJugador());
+}
+
+
+int main(int argc, char* argv[]) {
+
+	// 1. Inicializar Allegro
+	if (!al_init()) {
+		cout << "Error al inicializar Allegro" << endl;
+		return -1;
+	}
+
+	// 2. Inicializar primitivas
+	if (!al_init_primitives_addon()) {
+		cout << "Error al inicializar primitivas" << endl;
+		return -1;
+	}
+
+	// 3. Crear ventana
+	ALLEGRO_DISPLAY* ventana = al_create_display(800, 600);
+
+	if (!ventana) {
+		cout << "No se pudo crear la ventana" << endl;
+		return -1;
+	}
+
+	// 4. Crear timer y cola de eventos
+	ALLEGRO_TIMER* timer = al_create_timer(1.0 / 60.0);
+	ALLEGRO_EVENT_QUEUE* colaEventos = al_create_event_queue();
+
+	if (!timer || !colaEventos) {
+		cout << "Error al crear timer o cola de eventos" << endl;
+		return -1;
+	}
+
+	// 5. Registrar eventos
+	al_register_event_source(
+		colaEventos,
+		al_get_display_event_source(ventana)
+	);
+
+	al_register_event_source(
+		colaEventos,
+		al_get_timer_event_source(timer)
+	);
+
+	// 6. Crear motor
+	Motor motor;
+
+	bool ejecutando = true;
+
+	al_start_timer(timer);
+
+	// 7. Ciclo principal
+	while (ejecutando) {
+
+		ALLEGRO_EVENT evento;
+		al_wait_for_event(colaEventos, &evento);
+
+		// Cerrar con la X
+		if (evento.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+			ejecutando = false;
+		}
+
+		// Actualizar y dibujar a 60 FPS
+		if (evento.type == ALLEGRO_EVENT_TIMER) {
+
+			// El motor deja de actualizarse cuando termina la partida
+			if (!motor.terminada()) {
+				motor.tickBot();
+			}
+
+			al_clear_to_color(al_map_rgb(0, 0, 0));
+
+			dibujarMundo(motor);
+
+			al_flip_display();
+		}
+	}
+
+	// 8. Liberar recursos
+	al_destroy_event_queue(colaEventos);
+	al_destroy_timer(timer);
+	al_destroy_display(ventana);
 
 		if (valida == true) {
 			script.insertarFinal(a);

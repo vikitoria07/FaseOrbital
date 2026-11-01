@@ -115,6 +115,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\gabri\source\repos\PracAllegro\packages\Allegro.5.2.11.3\build\native\v143\x64\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>C:\Users\gabri\source\repos\PracAllegro\packages\Allegro.5.2.11.3\build\native\v143\x64\lib\allegro_primitives.lib</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
@@ -139,12 +141,16 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="FaseOrbital.cpp" />
+    <ClCompile Include="FaseOrbital.cpp">
+      <AdditionalModuleDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\gabri\source\repos\PracAllegro\packages\Allegro.5.2.11.3\build\native\include\allegro5</AdditionalModuleDependencies>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\gabri\source\repos\PracAllegro\packages\Allegro.5.2.11.3\build\native\include</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Generador.h" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="Jugador.h" />
+    <ClInclude Include="VistaJuego.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
