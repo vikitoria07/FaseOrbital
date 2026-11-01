@@ -64,3 +64,9 @@ inline std::uint64_t semillaOleada(int oleada, std::uint32_t semilla) {
 	return static_cast<std::uint64_t>(semilla) * 1000ULL
 		+ static_cast<std::uint32_t>(oleada);
 }
+
+// Este bool indica si la ronda es impar, si esto se cumple realiza un recorrido de tipo "horario". Por otro lado,
+// si las rondas son pares realiza un recorrido "antihorario".
+bool rondaimpar(int rondaactual) {
+	return rondaactual % 2 == 1;
+}

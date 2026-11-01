@@ -152,6 +152,7 @@
     <ClInclude Include="Generador.h" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="Jugador.h" />
+    <ClInclude Include="Pulso.h" />
     <ClInclude Include="VistaJuego.h" />
   </ItemGroup>
   <ItemGroup>
