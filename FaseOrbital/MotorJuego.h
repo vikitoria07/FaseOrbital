@@ -508,6 +508,7 @@ public:
 	int obtenerPulsos() const { return pulsosUsados; }
 	int obtenerDanoTotal() const { return danoTotal; }
 	int obtenerBajas(int tipo) const { return bajas[tipo]; }
+	uint32_t obtenerSemilla() const { return semillaPartida; }
 
 	// La siguiente función es para que los lotes puedan diseñar al jugador
 	void configurarJugador(int indice, const string& nombre) {
@@ -611,5 +612,44 @@ public:
 
 		return salida.str();
 	}
-
 };
+
+struct MetricasCalcular {
+	float puntaje = 0.0f;
+	int oleada = 0;
+	int disparos = 0;
+	int impactosCorrectos = 0;
+	int impactosIncorrectos = 0;
+	double precision = 0.0;
+	double eficiencia = 0.0;
+	int comboMaximo = 0;
+	int dano = 0;
+	int pulsos = 0;
+	int ticks = 0;
+	int bajas = 0;
+};
+
+MetricasCalcular calcularMetricas(const Motor& motor) {
+	MetricasCalcular m;
+	m.puntaje = motor.obtenerJugador().obtenerPuntaje();
+	m.oleada = motor.obtenerOleada();
+	m.disparos = motor.obtenerDisparos();
+	m.impactosCorrectos = motor.obtenerCorrectos();
+	m.impactosIncorrectos = motor.obtenerErroneos();
+	m.comboMaximo = motor.obtenerJugador().obtenerComboMaximo();
+	m.dano = motor.obtenerDanoTotal();
+	m.pulsos = motor.obtenerPulsos();
+	m.ticks = motor.obtenerTickActual();
+
+	for (int tipo = 0; tipo < 6; ++tipo) {
+		m.bajas += motor.obtenerBajas(tipo);
+	}
+
+	// Precisión: porcentaje de disparos que impactaron con el color correcto.
+	if (m.disparos > 0) {
+		m.precision = 100.0 * m.impactosCorrectos / m.disparos;
+		m.eficiencia = static_cast<double>(m.puntaje) / m.disparos;
+	}
+
+	return m;
+}
