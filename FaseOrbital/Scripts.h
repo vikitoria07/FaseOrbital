@@ -139,7 +139,7 @@ struct OpcionesLotes {
 };
 // El bool establece si el alias es un bot
 bool esAliasBot(const string& alias) {
-	return alias.size() >= 3 && alias.substr(0, 3) == "Bot";
+	return alias.size() >= 3 && alias.substr(0, 3) == "BOT";
 }
 // La siguiente función lee el script de las acciones
 int cargarScript(const string& ruta, ListaScript& script) {
@@ -180,7 +180,7 @@ int cargarScript(const string& ruta, ListaScript& script) {
 			a.tick = valorEntero(textoTick);
 		}
 
-		if (nombreAccion == "Color") {
+		if (nombreAccion == "Color" || nombreAccion == "COLOR") {
 			a.tipo = TipoAccion::CAMBIAR_COLOR;
 			if (parametro == "C") {
 				a.parametro = 0;
@@ -195,7 +195,7 @@ int cargarScript(const string& ruta, ListaScript& script) {
 				valida = false;
 			}
 		}
-		else if (nombreAccion == "Girar_A") {
+		else if (nombreAccion == "Girar_A" || nombreAccion == "GIRAR_A") {
 			a.tipo = TipoAccion::GIRAR_A;
 			if (valorenteroValido(parametro) && valorEntero(parametro) <= 359) {
 				a.parametro = valorEntero(parametro);
@@ -204,7 +204,7 @@ int cargarScript(const string& ruta, ListaScript& script) {
 				valida = false;
 			}
 		}
-		else if (nombreAccion == "Pulso") {
+		else if (nombreAccion == "Pulso" || nombreAccion == "PULSO") {
 			a.tipo = TipoAccion::ACTIVAR_PULSO;
 		}
 		else {

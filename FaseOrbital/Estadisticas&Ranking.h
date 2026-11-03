@@ -109,6 +109,69 @@ void historialRanking(const historialPartidas& historial, Ranking& ranking) {
 	}
 }
 
+// Resumen estadistico de un jugador calculado desde el historial.
+struct ResumenJugador {
+	string jugador;
+	int partidas;
+	int victorias;
+	int mejor;
+	int peor;
+	double media;
+	double mediana;
+	double desviacion;
+	double precisionPromedio;
+	int histograma[10];
+};
+
+// Llena r con los datos del jugador; devuelve false si no tiene partidas.
+bool resumenJugador(const historialPartidas& historial, const string& jugador, ResumenJugador& r) {
+	r.jugador = jugador;
+	r.partidas = 0;
+	r.victorias = 0;
+	r.mejor = 0;
+	r.peor = 0;
+	r.media = 0.0;
+	r.mediana = 0.0;
+	r.desviacion = 0.0;
+	r.precisionPromedio = 0.0;
+	for (int i = 0; i < 10; ++i) r.histograma[i] = 0;
+
+	ListaPuntajes lista;
+	double sumaPrecision = 0.0;
+	int conDisparos = 0;
+	for (NodoRegistroPartida* a = historial.primero(); a != nullptr; a = a->sig) {
+		if (a->dato.jugador != jugador) continue;
+		lista.insertarFinal(a->dato.puntaje);
+		r.partidas++;
+		if (a->dato.posicion == 1) r.victorias++;
+		if (a->dato.disparos > 0) {
+			sumaPrecision += 100.0 * a->dato.correctos / a->dato.disparos;
+			conDisparos++;
+		}
+		if (r.partidas == 1 || a->dato.puntaje > r.mejor) r.mejor = a->dato.puntaje;
+		if (r.partidas == 1 || a->dato.puntaje < r.peor) r.peor = a->dato.puntaje;
+	}
+	if (r.partidas == 0) return false;
+
+	r.media = lista.media();
+	r.mediana = lista.mediana();
+	r.desviacion = lista.desviacion();
+	if (conDisparos > 0) r.precisionPromedio = sumaPrecision / conDisparos;
+
+	// Histograma de 10 intervalos de igual ancho entre el minimo y el maximo.
+	const double ancho = (r.mejor - r.peor) / 10.0;
+	for (NodoRegistroPartida* a = historial.primero(); a != nullptr; a = a->sig) {
+		if (a->dato.jugador != jugador) continue;
+		int bin = 0;
+		if (ancho > 0.0) {
+			bin = static_cast<int>((a->dato.puntaje - r.peor) / ancho);
+			if (bin > 9) bin = 9;
+		}
+		r.histograma[bin]++;
+	}
+	return true;
+}
+
 // Esta función imprime la tabla con los mejores jugadores (top 10)
 int ejecutarRanking(const string& ruta) {
 	historialPartidas historial;
