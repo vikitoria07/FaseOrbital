@@ -158,8 +158,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="FaseOrbital.cpp">
-      <AdditionalModuleDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\gabri\source\repos\PracAllegro\packages\Allegro.5.2.11.3\build\native\include\allegro5</AdditionalModuleDependencies>
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\gabri\source\repos\PracAllegro\packages\Allegro.5.2.11.3\build\native\include</AdditionalIncludeDirectories>
+      <AdditionalModuleDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalModuleDependencies>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)packages\Allegro.5.2.11.3\build\native\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
